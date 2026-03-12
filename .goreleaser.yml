@@ -26,18 +26,6 @@ archives:
     formats:
       - tar.gz
 
-brews:
-  - repository:
-      owner: opscompanion
-      name: opc
-    directory: Formula
-    homepage: "https://github.com/opscompanion/opc"
-    description: "CLI companion for platform engineers — persistent context, memory, and session management"
-    license: "MIT"
-    install: |
-      bin.install "opc"
-    test: |
-      system "#{bin}/opc", "version"
 
 checksum:
   name_template: "checksums.txt"
