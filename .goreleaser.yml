@@ -22,16 +22,17 @@ builds:
       - arm64
 
 archives:
-  - format: tar.gz
-    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+  - name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+    formats:
+      - tar.gz
 
 brews:
   - repository:
       owner: opscompanion
-      name: opc
+      name: homebrew-opc
     directory: Formula
     homepage: "https://github.com/opscompanion/opc"
-    description: "CLI companion for platform engineers — persistent context, memory, and session management for agent-assisted workflows"
+    description: "CLI companion for platform engineers — persistent context, memory, and session management"
     license: "MIT"
     install: |
       bin.install "opc"
