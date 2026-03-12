@@ -1,16 +1,17 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
 	"strings"
 	"time"
 
-	"github.com/opscompanion/opsctl/internal/api"
-	"github.com/opscompanion/opsctl/internal/capture"
-	"github.com/opscompanion/opsctl/internal/config"
-	"github.com/opscompanion/opsctl/internal/models"
+	"github.com/opscompanion/opc/internal/api"
+	"github.com/opscompanion/opc/internal/capture"
+	"github.com/opscompanion/opc/internal/config"
+	"github.com/opscompanion/opc/internal/models"
 	"github.com/spf13/cobra"
 )
 
@@ -40,7 +41,6 @@ func runSessionStart(cmd *cobra.Command, args []string) error {
 
 	session := models.Session{
 		ID:      sessionID,
-		Org:     cfg.Org,
 		User:    currentUser(),
 		Started: time.Now().UTC(),
 		Repo:    repo,
@@ -48,17 +48,17 @@ func runSessionStart(cmd *cobra.Command, args []string) error {
 	}
 
 	// Initialize session capture
+	hookData, _ := json.Marshal(map[string]interface{}{
+		"hook":    "session-start",
+		"repo":    repo,
+		"branch":  branch,
+		"user":    session.User,
+		"started": session.Started,
+	})
 	capture.AppendEvent(sessionID, capture.Event{
-		ID:   fmt.Sprintf("evt_%d_start", time.Now().UnixNano()),
-		Type: "hook",
-		Data: map[string]interface{}{
-			"hook":    "session-start",
-			"org":     cfg.Org,
-			"repo":    repo,
-			"branch":  branch,
-			"user":    session.User,
-			"started": session.Started,
-		},
+		ID:       fmt.Sprintf("evt_%d_start", time.Now().UnixNano()),
+		HookType: "SessionStart",
+		Data:     json.RawMessage(hookData),
 	})
 
 	client := api.New(cfg)
@@ -69,7 +69,7 @@ func runSessionStart(cmd *cobra.Command, args []string) error {
 
 	fmt.Printf("# OpsCompanion Session Started\n\n")
 	fmt.Printf("**Session**: `%s`\n", sessionID)
-	fmt.Printf("**Org**: %s\n", cfg.Org)
+	fmt.Printf("**Org**: %s · **User**: %s\n", ctx.Org.Name, ctx.User.Name)
 	fmt.Printf("**Started**: %s\n\n", session.Started.Format(time.RFC3339))
 	fmt.Printf("## Org: %s\n\n", ctx.Org.Name)
 	fmt.Printf("- **Cloud provider**: %s\n", ctx.Org.CloudProvider)

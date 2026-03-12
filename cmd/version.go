@@ -14,9 +14,9 @@ var (
 
 var versionCmd = &cobra.Command{
 	Use:   "version",
-	Short: "Print the version of opsctl",
+	Short: "Print the version of opc",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		fmt.Printf("opsctl %s (commit: %s, built: %s)\n", Version, Commit, Date)
+		fmt.Printf("opc %s (commit: %s, built: %s)\n", Version, Commit, Date)
 		return nil
 	},
 }

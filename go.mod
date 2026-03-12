@@ -1,4 +1,4 @@
-module github.com/opscompanion/opsctl
+module github.com/opscompanion/opc
 
 go 1.25.0
 

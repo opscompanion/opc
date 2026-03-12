@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/opscompanion/opsctl/internal/api"
-	"github.com/opscompanion/opsctl/internal/config"
+	"github.com/opscompanion/opc/internal/api"
+	"github.com/opscompanion/opc/internal/config"
 	"github.com/spf13/cobra"
 )
 

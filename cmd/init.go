@@ -6,15 +6,15 @@ import (
 	"os"
 	"strings"
 
-	"github.com/opscompanion/opsctl/internal/api"
-	"github.com/opscompanion/opsctl/internal/config"
-	"github.com/opscompanion/opsctl/internal/models"
+	"github.com/opscompanion/opc/internal/api"
+	"github.com/opscompanion/opc/internal/config"
+	"github.com/opscompanion/opc/internal/models"
 	"github.com/spf13/cobra"
 )
 
 var initCmd = &cobra.Command{
 	Use:   "init",
-	Short: "Configure opsctl with your API key and org",
+	Short: "Configure opc with your API key and endpoint",
 	RunE:  runInit,
 }
 
@@ -52,17 +52,9 @@ func runInit(cmd *cobra.Command, args []string) error {
 		apiURL = "https://api.opscompanion.dev/v1"
 	}
 
-	fmt.Print("Org slug: ")
-	org, _ := reader.ReadString('\n')
-	org = strings.TrimSpace(org)
-	if org == "" {
-		return fmt.Errorf("org slug is required")
-	}
-
 	cfg := &models.Config{
 		APIURL: apiURL,
 		APIKey: apiKey,
-		Org:    org,
 	}
 
 	// Validate
@@ -85,11 +77,10 @@ func runInit(cmd *cobra.Command, args []string) error {
 	fmt.Println("Configuration saved.")
 	fmt.Printf("  API URL: %s\n", apiURL)
 	fmt.Printf("  API Key: %s\n", masked)
-	fmt.Printf("  Org:     %s\n", org)
 
 	p, _ := config.Path()
 	fmt.Printf("  File:    %s\n", p)
 	fmt.Println()
-	fmt.Println("Run `opsctl context` to verify your setup.")
+	fmt.Println("Run `opc context` to verify your setup.")
 	return nil
 }

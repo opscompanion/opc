@@ -6,7 +6,6 @@ import "time"
 type Config struct {
 	APIURL string `json:"api_url"`
 	APIKey string `json:"api_key"`
-	Org    string `json:"org"`
 }
 
 // Session represents an agent session.
@@ -51,7 +50,7 @@ type UserContext struct {
 	Shell      string   `json:"shell"`
 }
 
-// EnvContext holds environment metadata.
+// EnvContext holds workspace metadata.
 type EnvContext struct {
 	Branch     string `json:"current_branch"`
 	WorkDir    string `json:"working_directory"`
@@ -63,7 +62,7 @@ type FullContext struct {
 	Org  OrgContext  `json:"org"`
 	Team TeamContext `json:"team"`
 	User UserContext `json:"user"`
-	Env  EnvContext  `json:"environment"`
+	Env  EnvContext  `json:"workspace"`
 }
 
 // Memory represents a stored decision, discovery, or context entry.
@@ -86,26 +85,17 @@ type SearchResult struct {
 	QueryTimeMS  int      `json:"query_time_ms"`
 }
 
-// CommitRecord links a git commit to a session.
-type CommitRecord struct {
-	SessionID string `json:"session_id"`
-	Hash      string `json:"commit_hash"`
-	Short     string `json:"commit_short"`
-	Message   string `json:"commit_message"`
-	Branch    string `json:"branch"`
-	Author    string `json:"author"`
-	Timestamp string `json:"timestamp"`
-}
-
-// HistoryEntry combines a commit with its session info.
+// HistoryEntry represents a significant session event.
 type HistoryEntry struct {
-	Commit    CommitRecord `json:"commit"`
-	Agent     string       `json:"agent"`
-	SessionID string       `json:"session_id"`
-	Decisions []string     `json:"decisions,omitempty"`
+	SessionID string         `json:"session_id"`
+	Agent     string         `json:"agent"`
+	Summary   string         `json:"summary"`
+	Trigger   string         `json:"trigger"` // git_commit, file_change, session_stop, etc.
+	Detail    map[string]any `json:"detail,omitempty"`
+	Decisions []string       `json:"decisions,omitempty"`
 }
 
-// Checkpoint represents a session checkpoint.
+// Checkpoint represents a session checkpoint (API response).
 type Checkpoint struct {
 	SessionID     string   `json:"session_id"`
 	Compressed    string   `json:"compressed_summary"`

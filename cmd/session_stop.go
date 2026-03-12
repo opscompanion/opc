@@ -4,11 +4,9 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
-	"github.com/opscompanion/opsctl/internal/api"
-	"github.com/opscompanion/opsctl/internal/capture"
-	"github.com/opscompanion/opsctl/internal/config"
+	"github.com/opscompanion/opc/internal/api"
+	"github.com/opscompanion/opc/internal/config"
 	"github.com/spf13/cobra"
 )
 
@@ -33,18 +31,9 @@ func runSessionStop(cmd *cobra.Command, args []string) error {
 		sessionID = args[0]
 	}
 	if sessionID == "" {
-		return fmt.Errorf("session ID required (set CLAUDE_SESSION_ID or pass as argument)")
+		// When called from a hook, exit silently if no session ID
+		return nil
 	}
-
-	// Log stop event
-	capture.AppendEvent(sessionID, capture.Event{
-		ID:   fmt.Sprintf("evt_%d_stop", time.Now().UnixNano()),
-		Type: "hook",
-		Data: map[string]interface{}{
-			"hook":    "session-stop",
-			"stopped": time.Now().UTC(),
-		},
-	})
 
 	client := api.New(cfg)
 	memories, err := client.StopSession(sessionID)

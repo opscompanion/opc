@@ -4,14 +4,14 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/opscompanion/opsctl/internal/api"
-	"github.com/opscompanion/opsctl/internal/config"
+	"github.com/opscompanion/opc/internal/api"
+	"github.com/opscompanion/opc/internal/config"
 	"github.com/spf13/cobra"
 )
 
 var contextCmd = &cobra.Command{
 	Use:   "context",
-	Short: "Display org, team, user, and environment context",
+	Short: "Display org, team, user, and workspace context",
 	RunE:  runContext,
 }
 
@@ -55,7 +55,7 @@ func runContext(cmd *cobra.Command, args []string) error {
 	fmt.Printf("- **Editor**: %s\n", ctx.User.Editor)
 	fmt.Printf("- **Shell**: %s\n", ctx.User.Shell)
 
-	fmt.Printf("\n## Environment\n\n")
+	fmt.Printf("\n## Workspace\n\n")
 	fmt.Printf("- **Current branch**: %s\n", ctx.Env.Branch)
 	fmt.Printf("- **Working directory**: %s\n", ctx.Env.WorkDir)
 

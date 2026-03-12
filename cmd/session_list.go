@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/opscompanion/opsctl/internal/capture"
+	"github.com/opscompanion/opc/internal/capture"
 	"github.com/spf13/cobra"
 )
 
 var sessionListCmd = &cobra.Command{
 	Use:   "list",
-	Short: "List all captured sessions in /tmp/opsctl/sessions",
+	Short: "List all captured sessions in /tmp/opc/sessions",
 	RunE:  runSessionList,
 }
 

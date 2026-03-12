@@ -1,0 +1,50 @@
+version: 2
+
+project_name: opc
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - main: .
+    binary: opc
+    ldflags:
+      - -s -w
+      - -X github.com/opscompanion/opc/cmd.Version={{.Version}}
+      - -X github.com/opscompanion/opc/cmd.Commit={{.ShortCommit}}
+      - -X github.com/opscompanion/opc/cmd.Date={{.Date}}
+    goos:
+      - darwin
+      - linux
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - format: tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+
+brews:
+  - repository:
+      owner: opscompanion
+      name: opc
+    directory: Formula
+    homepage: "https://github.com/opscompanion/opc"
+    description: "CLI companion for platform engineers — persistent context, memory, and session management for agent-assisted workflows"
+    license: "MIT"
+    install: |
+      bin.install "opc"
+    test: |
+      system "#{bin}/opc", "version"
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"

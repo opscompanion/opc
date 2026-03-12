@@ -10,19 +10,10 @@ import (
 var cfgFile string
 
 var rootCmd = &cobra.Command{
-	Use:   "opsctl",
+	Use:   "opc",
 	Short: "OpsCompanion CLI for platform operations",
-	Long: `opsctl is a CLI tool for managing platform infrastructure, deployments,
-and operational workflows.
-
-Commands:
-  init              Configure API key, org, and endpoint
-  context           Show org/team/user context
-  recall <query>    Search stored memories
-  remember <text>   Save a decision or discovery
-  history           View commit history with linked sessions
-  session           Manage agent sessions (start, stop, resume, checkpoint)
-  commit capture    Link a git commit to the current session`,
+	Long: `opc is a CLI companion for platform engineers. It provides persistent
+context, memory, and session management for agent-assisted workflows.`,
 }
 
 func Execute() {
@@ -33,5 +24,6 @@ func Execute() {
 }
 
 func init() {
+	rootCmd.CompletionOptions.DisableDefaultCmd = true
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is ~/.config/opscompanion/config.json)")
 }

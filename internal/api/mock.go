@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/opscompanion/opsctl/internal/models"
+	"github.com/opscompanion/opc/internal/models"
 )
 
 // MockClient returns realistic mock responses for all API operations.
@@ -26,9 +26,6 @@ func (m *MockClient) currentUser() string {
 }
 
 func (m *MockClient) org() string {
-	if m.cfg != nil && m.cfg.Org != "" {
-		return m.cfg.Org
-	}
 	return "acme-corp"
 }
 
@@ -103,10 +100,6 @@ func (m *MockClient) Checkpoint(sessionID string) (*models.Checkpoint, error) {
 			"src/config/limits.ts",
 		},
 	}, nil
-}
-
-func (m *MockClient) LinkCommit(sessionID string, commit models.CommitRecord) error {
-	return nil
 }
 
 func (m *MockClient) SaveMemory(content string, tags []string) (*models.Memory, error) {
@@ -253,74 +246,49 @@ func (m *MockClient) k8sResults() *models.SearchResult {
 func (m *MockClient) GetHistory() ([]models.HistoryEntry, error) {
 	return []models.HistoryEntry{
 		{
-			Commit: models.CommitRecord{
-				Hash:    "b68df0da91c4e5f2a3b8d1e7f9c2a4b6d8e0f1a3",
-				Short:   "b68df0d",
-				Message: "Fix flaky TestHTTPServer by increasing timeout",
-				Branch:  "feat/rate-limiter",
-				Author:  "kenneth",
-			},
-			Agent:     "Claude Code",
 			SessionID: "ses_1739448821_a3f1",
+			Agent:     "Claude Code",
+			Summary:   "Fix flaky TestHTTPServer by increasing timeout",
+			Trigger:   "git_commit",
+			Detail:    map[string]any{"short_hash": "b68df0d", "branch": "feat/rate-limiter"},
 			Decisions: []string{"Increased test timeout from 5s to 15s to handle CI cold starts"},
 		},
 		{
-			Commit: models.CommitRecord{
-				Hash:    "f92e4d1b3c5a7e9d1f3b5c7a9e1d3f5b7c9a1d3e",
-				Short:   "f92e4d1",
-				Message: "Add webhook retry logic with exponential backoff",
-				Branch:  "feat/rate-limiter",
-				Author:  "kenneth",
-			},
-			Agent:     "Claude Code",
 			SessionID: "ses_1739362410_c8e2",
+			Agent:     "Claude Code",
+			Summary:   "Add webhook retry logic with exponential backoff",
+			Trigger:   "git_commit",
+			Detail:    map[string]any{"short_hash": "f92e4d1", "branch": "feat/rate-limiter"},
 			Decisions: []string{"Exponential backoff with jitter, max 3 retries, 30s cap"},
 		},
 		{
-			Commit: models.CommitRecord{
-				Hash:    "a3c17e8d5f7b9a1c3e5d7f9b1a3c5e7d9f1b3a5c",
-				Short:   "a3c17e8",
-				Message: "Expand t.Parallel exception list for DB-dependent tests",
-				Branch:  "main",
-				Author:  "sarah",
-			},
-			Agent:     "Claude Code",
 			SessionID: "ses_1739189605_9b4d",
+			Agent:     "Claude Code",
+			Summary:   "Expanded t.Parallel exception list for DB-dependent tests",
+			Trigger:   "git_commit",
+			Detail:    map[string]any{"short_hash": "a3c17e8", "branch": "main"},
 		},
 		{
-			Commit: models.CommitRecord{
-				Hash:    "e71a0b3f5d7c9a1b3e5f7d9c1a3b5e7f9d1c3a5b",
-				Short:   "e71a0b3",
-				Message: "Migrate config-service to Postgres adapter",
-				Branch:  "feat/postgres-migration",
-				Author:  "kenneth",
-			},
-			Agent:     "Claude Code",
 			SessionID: "ses_1739103200_d7f3",
+			Agent:     "Claude Code",
+			Summary:   "Migrate config-service to Postgres adapter",
+			Trigger:   "git_commit",
+			Detail:    map[string]any{"short_hash": "e71a0b3", "branch": "feat/postgres-migration"},
 			Decisions: []string{"Postgres over DynamoDB for config — need transactions and joins"},
 		},
 		{
-			Commit: models.CommitRecord{
-				Hash:    "c4d6e8f0a2b4c6d8e0f2a4b6c8d0e2f4a6b8c0d2",
-				Short:   "c4d6e8f",
-				Message: "Add PASETO token generation to auth-service",
-				Branch:  "feat/paseto-migration",
-				Author:  "kenneth",
-			},
-			Agent:     "Claude Code",
 			SessionID: "ses_1739016800_e5a2",
+			Agent:     "Claude Code",
+			Summary:   "File edits: auth-service token generation + tests",
+			Trigger:   "periodic",
+			Detail:    map[string]any{"event_count": 50},
 			Decisions: []string{"PASETO v4 with local encryption, 1h expiry, refresh via /auth/refresh"},
 		},
 		{
-			Commit: models.CommitRecord{
-				Hash:    "d5e7f9a1b3c5d7e9f1a3b5c7d9e1f3a5b7c9d1e3",
-				Short:   "d5e7f9a",
-				Message: "Update Helm values for K8s 1.29 control plane",
-				Branch:  "feat/k8s-upgrade",
-				Author:  "sarah",
-			},
-			Agent:     "Claude Code",
 			SessionID: "ses_1738930400_f6b3",
+			Agent:     "Claude Code",
+			Summary:   "Session ended after K8s Helm values update",
+			Trigger:   "session_stop",
 			Decisions: []string{"Pin kube-proxy image to v1.29.2, update API server flags"},
 		},
 	}, nil

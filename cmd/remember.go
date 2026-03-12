@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/opscompanion/opsctl/internal/api"
-	"github.com/opscompanion/opsctl/internal/config"
+	"github.com/opscompanion/opc/internal/api"
+	"github.com/opscompanion/opc/internal/config"
 	"github.com/spf13/cobra"
 )
 
@@ -38,7 +38,6 @@ func runRemember(cmd *cobra.Command, args []string) error {
 
 	fmt.Println("Memory saved.")
 	fmt.Printf("  ID:      %s\n", mem.ID)
-	fmt.Printf("  Org:     %s\n", mem.Org)
 	fmt.Printf("  User:    %s\n", mem.User)
 	fmt.Printf("  Tags:    %s\n", strings.Join(mem.Tags, ", "))
 	fmt.Printf("  Saved:   %s\n", mem.CreatedAt)

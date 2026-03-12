@@ -4,14 +4,14 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/opscompanion/opsctl/internal/api"
-	"github.com/opscompanion/opsctl/internal/config"
+	"github.com/opscompanion/opc/internal/api"
+	"github.com/opscompanion/opc/internal/config"
 	"github.com/spf13/cobra"
 )
 
 var historyCmd = &cobra.Command{
 	Use:   "history",
-	Short: "View commit history with linked agent sessions",
+	Short: "View session history with linked events and decisions",
 	RunE:  runHistory,
 }
 
@@ -31,15 +31,15 @@ func runHistory(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("fetching history: %w", err)
 	}
 
-	fmt.Println("# Session-Linked Commit History")
+	fmt.Println("# Session History")
 	fmt.Println()
-	fmt.Printf("%-9s | %-50s | %-12s | %s\n", "Commit", "Message", "Agent", "Session")
+	fmt.Printf("%-12s | %-45s | %-12s | %s\n", "Trigger", "Summary", "Agent", "Session")
 	fmt.Println(strings.Repeat("-", 100))
 
 	for _, e := range entries {
-		fmt.Printf("%-9s | %-50s | %-12s | %s\n",
-			e.Commit.Short,
-			truncate(e.Commit.Message, 50),
+		fmt.Printf("%-12s | %-45s | %-12s | %s\n",
+			e.Trigger,
+			truncate(e.Summary, 45),
 			e.Agent,
 			e.SessionID,
 		)
@@ -51,7 +51,7 @@ func runHistory(cmd *cobra.Command, args []string) error {
 	fmt.Println()
 	for _, e := range entries {
 		if len(e.Decisions) > 0 {
-			fmt.Printf("**%s** (%s):\n", e.Commit.Short, e.Commit.Message)
+			fmt.Printf("**%s** (%s):\n", e.SessionID, e.Summary)
 			for _, d := range e.Decisions {
 				fmt.Printf("  - %s\n", d)
 			}

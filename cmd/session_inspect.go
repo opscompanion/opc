@@ -1,12 +1,13 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/opscompanion/opsctl/internal/capture"
+	"github.com/opscompanion/opc/internal/capture"
 	"github.com/spf13/cobra"
 )
 
@@ -37,57 +38,68 @@ func runSessionInspect(cmd *cobra.Command, args []string) error {
 	if info, err := os.Stat(logPath); err == nil {
 		data, _ := os.ReadFile(logPath)
 		lines := 0
-		for _, b := range data {
-			if b == '\n' {
-				lines++
+		toolCounts := map[string]int{}
+		for _, line := range strings.Split(string(data), "\n") {
+			if line == "" {
+				continue
+			}
+			lines++
+			var ev struct {
+				ToolName string `json:"tool_name"`
+			}
+			if err := json.Unmarshal([]byte(line), &ev); err == nil && ev.ToolName != "" {
+				toolCounts[ev.ToolName]++
 			}
 		}
 		fmt.Printf("## Event Log\n\n")
 		fmt.Printf("- **Events**: %d\n", lines)
 		fmt.Printf("- **Size**: %s\n", formatBytes(info.Size()))
-		fmt.Printf("- **Path**: %s\n", logPath)
+		if len(toolCounts) > 0 {
+			parts := []string{}
+			for tool, count := range toolCounts {
+				parts = append(parts, fmt.Sprintf("%s(%d)", tool, count))
+			}
+			fmt.Printf("- **Tools**: %s\n", strings.Join(parts, ", "))
+		}
 	} else {
 		fmt.Println("No event log found.")
 	}
 
-	// Show checkpoints
+	// Show checkpoint (metadata.json in same dir)
 	cps, err := capture.ListCheckpoints(sessionID)
 	if err != nil {
 		return err
 	}
 
-	fmt.Printf("\n## Checkpoints (%d)\n\n", len(cps))
 	if len(cps) == 0 {
-		fmt.Println("No checkpoints yet.")
+		fmt.Println("\nNo checkpoint yet.")
 		return nil
 	}
 
-	for _, cp := range cps {
-		cpPath := capture.CheckpointPath(cp)
-		fmt.Printf("### `%s/%d` — %s\n\n", cp.CheckpointID, cp.CheckpointIndex, cp.CommitMessage)
-		fmt.Printf("- **Commit**: `%s`\n", cp.CommitHash[:12])
-		fmt.Printf("- **Branch**: %s\n", cp.Branch)
-		fmt.Printf("- **Events**: %d\n", cp.EventCount)
-		fmt.Printf("- **Tokens**: %d input / %d output\n", cp.TokenUsage.Input, cp.TokenUsage.Output)
-		fmt.Printf("- **Attribution**: %s — %d/%d lines (%.0f%%)\n",
-			cp.Attribution.Agent, cp.Attribution.AgentLines, cp.Attribution.TotalLines, cp.Attribution.AgentPercent)
-
-		// List checkpoint files
-		fmt.Printf("- **Files**:\n")
-		entries, _ := os.ReadDir(cpPath)
-		for _, e := range entries {
-			info, _ := e.Info()
-			size := int64(0)
-			if info != nil {
-				size = info.Size()
-			}
-			fmt.Printf("  - `%s` (%s)\n", e.Name(), formatBytes(size))
+	cp := cps[0]
+	fmt.Printf("\n## Checkpoint `%s`\n\n", cp.CheckpointID)
+	fmt.Printf("- **Trigger**: %s\n", cp.Trigger)
+	fmt.Printf("- **Events**: %d\n", cp.EventCount)
+	fmt.Printf("- **Created**: %s\n", cp.CreatedAt)
+	if len(cp.TriggerDetail) > 0 {
+		for k, v := range cp.TriggerDetail {
+			fmt.Printf("- **%s**: %v\n", k, v)
 		}
+	}
 
-		if len(cp.FilesModified) > 0 {
-			fmt.Printf("- **Modified**: %s\n", strings.Join(cp.FilesModified, ", "))
+	// List all files in session dir
+	fmt.Printf("\n## Files\n\n")
+	entries, _ := os.ReadDir(dir)
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
 		}
-		fmt.Println()
+		info, _ := e.Info()
+		size := int64(0)
+		if info != nil {
+			size = info.Size()
+		}
+		fmt.Printf("- `%s` (%s)\n", e.Name(), formatBytes(size))
 	}
 	return nil
 }

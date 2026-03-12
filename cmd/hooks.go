@@ -11,16 +11,17 @@ import (
 
 var hooksCmd = &cobra.Command{
 	Use:   "hooks",
-	Short: "Generate Claude Code hook configuration for local testing",
-	Long: `Generates a .claude/settings.local.json with hooks that wire opsctl
-into your Claude Code session lifecycle:
+	Short: "Generate Claude Code hook configuration",
+	Long: `Generates a .claude/settings.local.json that wires opc into
+Claude Code's hook system to capture every action:
 
-  - SessionStart (startup): opsctl session start
-  - SessionStart (compact): opsctl session checkpoint
-  - Stop: opsctl session stop
-  - PostToolUse (Bash with git commit): opsctl commit capture
+  - PreToolUse  → captures every tool invocation before execution
+  - PostToolUse → captures every tool result (Bash, Write, Edit, Read, etc.)
+  - Stop        → captures session end + creates final checkpoint
+  - SessionStart → loads org/team/user context
 
-Run this in any project directory to enable session capture.`,
+This enables full session replay — every file edit, every shell command,
+every search, every action is logged to /tmp/opc/sessions/.`,
 	RunE: runHooks,
 }
 
@@ -32,29 +33,42 @@ func init() {
 }
 
 func runHooks(cmd *cobra.Command, args []string) error {
-	// Get absolute path to opsctl binary
 	binary, err := os.Executable()
 	if err != nil {
-		binary = "opsctl"
+		binary = "opc"
 	}
 
 	hooks := map[string]interface{}{
 		"hooks": map[string]interface{}{
+			"PreToolUse": []map[string]interface{}{
+				{
+					"hooks": []map[string]string{
+						{"type": "command", "command": binary + " capture --hook-type PreToolUse"},
+					},
+				},
+			},
+			"PostToolUse": []map[string]interface{}{
+				{
+					"hooks": []map[string]string{
+						{"type": "command", "command": binary + " capture --hook-type PostToolUse"},
+					},
+				},
+			},
 			"SessionStart": []map[string]interface{}{
 				{
-					"matcher":  "startup",
+					"matcher": "startup",
 					"hooks": []map[string]string{
 						{"type": "command", "command": binary + " session start"},
 					},
 				},
 				{
-					"matcher":  "compact",
+					"matcher": "compact",
 					"hooks": []map[string]string{
 						{"type": "command", "command": binary + " session checkpoint"},
 					},
 				},
 				{
-					"matcher":  "resume",
+					"matcher": "resume",
 					"hooks": []map[string]string{
 						{"type": "command", "command": binary + " session resume $CLAUDE_SESSION_ID"},
 					},
@@ -63,15 +77,8 @@ func runHooks(cmd *cobra.Command, args []string) error {
 			"Stop": []map[string]interface{}{
 				{
 					"hooks": []map[string]string{
+						{"type": "command", "command": binary + " capture --hook-type Stop"},
 						{"type": "command", "command": binary + " session stop"},
-					},
-				},
-			},
-			"PostToolUse": []map[string]interface{}{
-				{
-					"matcher":  "Bash",
-					"hooks": []map[string]string{
-						{"type": "command", "command": binary + " commit capture"},
 					},
 				},
 			},
@@ -88,7 +95,6 @@ func runHooks(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	// Write to .claude/settings.local.json in current directory
 	claudeDir := filepath.Join(".", ".claude")
 	if err := os.MkdirAll(claudeDir, 0755); err != nil {
 		return fmt.Errorf("creating .claude directory: %w", err)
@@ -100,12 +106,11 @@ func runHooks(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Printf("Hooks written to %s\n\n", settingsPath)
-	fmt.Println("Claude Code will now run opsctl hooks automatically:")
-	fmt.Println("  - Session start  → opsctl session start")
-	fmt.Println("  - Context compact → opsctl session checkpoint")
-	fmt.Println("  - Session resume → opsctl session resume")
-	fmt.Println("  - Session stop   → opsctl session stop")
-	fmt.Println("  - After git commit → opsctl commit capture")
+	fmt.Println("Claude Code will now capture every action:")
+	fmt.Println("  - PreToolUse   → log before each tool runs")
+	fmt.Println("  - PostToolUse  → log after each tool completes")
+	fmt.Println("  - SessionStart → load org/team/user context")
+	fmt.Println("  - Stop         → final checkpoint + extract memories")
 	fmt.Println()
 	fmt.Println("Restart your Claude Code session for hooks to take effect.")
 	return nil

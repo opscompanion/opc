@@ -1,7 +1,9 @@
 package api
 
 import (
-	"github.com/opscompanion/opsctl/internal/models"
+	"os"
+
+	"github.com/opscompanion/opc/internal/models"
 )
 
 // Client is the interface for the OpsCompanion API.
@@ -14,7 +16,6 @@ type Client interface {
 	StopSession(sessionID string) ([]models.Memory, error)
 	ResumeSession(sessionID string) (*models.SessionResumeContext, error)
 	Checkpoint(sessionID string) (*models.Checkpoint, error)
-	LinkCommit(sessionID string, commit models.CommitRecord) error
 
 	// Memories
 	SaveMemory(content string, tags []string) (*models.Memory, error)
@@ -28,7 +29,10 @@ type Client interface {
 }
 
 // New returns the appropriate client implementation based on config.
+// Uses mock client when api_key is "mock-key" or OPSCOMPANION_MOCK=true.
 func New(cfg *models.Config) Client {
-	// TODO: return real HTTP client when backend exists
-	return NewMockClient(cfg)
+	if cfg.APIKey == "mock-key" || os.Getenv("OPSCOMPANION_MOCK") == "true" {
+		return NewMockClient(cfg)
+	}
+	return NewHTTPClient(cfg)
 }

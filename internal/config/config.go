@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/opscompanion/opsctl/internal/models"
+	"github.com/opscompanion/opc/internal/models"
 )
 
 const (
@@ -85,7 +85,7 @@ func RequireConfig() (*models.Config, error) {
 		return nil, err
 	}
 	if cfg == nil {
-		return nil, fmt.Errorf("opsctl is not configured — run `opsctl init` first")
+		return nil, fmt.Errorf("opc is not configured — run `opc init` first")
 	}
 	return cfg, nil
 }
