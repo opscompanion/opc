@@ -29,7 +29,7 @@ archives:
 brews:
   - repository:
       owner: opscompanion
-      name: homebrew-opc
+      name: opc
     directory: Formula
     homepage: "https://github.com/opscompanion/opc"
     description: "CLI companion for platform engineers — persistent context, memory, and session management"
