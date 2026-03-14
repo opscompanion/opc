@@ -3,12 +3,18 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
+	"github.com/opscompanion/opc/internal/agent"
 	"github.com/opscompanion/opc/internal/update"
 	"github.com/spf13/cobra"
 )
 
 var cfgFile string
+var agentFlag string
+
+// ActiveAgent is the resolved agent info, available to all commands after PersistentPreRun.
+var ActiveAgent agent.Info
 
 // updateResult receives the async update check result.
 var updateResult chan string
@@ -18,14 +24,20 @@ var rootCmd = &cobra.Command{
 	Short: "OpsCompanion CLI for platform operations",
 	Long: `opc is a CLI companion for platform engineers. It provides persistent
 context, memory, and session management for agent-assisted workflows.`,
-	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		if err := agent.Validate(agentFlag); err != nil {
+			return err
+		}
+		ActiveAgent = agent.Resolve(agentFlag)
+
 		if !shouldCheckUpdate(cmd) {
-			return
+			return nil
 		}
 		updateResult = make(chan string, 1)
 		go func() {
 			updateResult <- update.Check(Version, false)
 		}()
+		return nil
 	},
 	PersistentPostRun: func(cmd *cobra.Command, args []string) {
 		if updateResult == nil {
@@ -59,4 +71,6 @@ func Execute() {
 func init() {
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is ~/.config/opscompanion/config.json)")
+	rootCmd.PersistentFlags().StringVar(&agentFlag, "agent", "auto",
+		fmt.Sprintf("agent runtime (%s)", strings.Join(agent.Supported(), ", ")))
 }

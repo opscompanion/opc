@@ -15,12 +15,16 @@ var captureHookType string
 
 var captureCmd = &cobra.Command{
 	Use:   "capture",
-	Short: "Capture a Claude Code hook event to the session log",
-	Long: `Reads a hook event from stdin (JSON from Claude Code hooks) and
-appends it to the active session's JSONL log. Automatically triggers
-checkpoints on git commits, session stops, or every 50 events.
+	Short: "Capture an agent hook event to the session log",
+	Long: `Reads a hook event from stdin (JSON from agent hooks) and appends
+it to the active session's JSONL log. Automatically triggers checkpoints
+on git commits, session stops, or every 50 events.
 
-Designed to be called from Claude Code hooks:
+Works with any agent runtime via --agent:
+  opc --agent claude capture --hook-type PreToolUse
+  opc --agent codex  capture --hook-type PreToolUse
+
+Hook types:
   PreToolUse  → captures every tool invocation before execution
   PostToolUse → captures every tool result after execution
   Stop        → captures session end and creates a checkpoint`,
@@ -57,7 +61,7 @@ func runCapture(cmd *cobra.Command, args []string) error {
 
 	sessionID := envelope.SessionID
 	if sessionID == "" {
-		sessionID = os.Getenv("CLAUDE_SESSION_ID")
+		sessionID = ActiveAgent.SessionID()
 	}
 	if sessionID == "" {
 		sessionID = fmt.Sprintf("ses_%d_local", time.Now().Unix())

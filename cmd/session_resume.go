@@ -39,12 +39,12 @@ func runSessionResume(cmd *cobra.Command, args []string) error {
 	fmt.Printf("- **Branch**: %s\n", ctx.Branch)
 	fmt.Printf("- **Modified files**: %s\n", strings.Join(ctx.ModifiedFiles, ", "))
 
-	fmt.Println("\n## Previous Decisions\n")
+	fmt.Println("\n## Previous Decisions")
 	for _, d := range ctx.Decisions {
 		fmt.Printf("- %s\n", d)
 	}
 
-	fmt.Println("\n## Open Threads\n")
+	fmt.Println("\n## Open Threads")
 	for _, t := range ctx.OpenThreads {
 		fmt.Printf("- %s\n", t)
 	}

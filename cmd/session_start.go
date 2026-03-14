@@ -31,7 +31,8 @@ func runSessionStart(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	sessionID := os.Getenv("CLAUDE_SESSION_ID")
+	ag := ActiveAgent
+	sessionID := ag.SessionID()
 	if sessionID == "" {
 		sessionID = fmt.Sprintf("ses_%d_%s", time.Now().Unix(), "local")
 	}
@@ -50,6 +51,7 @@ func runSessionStart(cmd *cobra.Command, args []string) error {
 	// Initialize session capture
 	hookData, _ := json.Marshal(map[string]interface{}{
 		"hook":    "session-start",
+		"agent":   string(ag.Name),
 		"repo":    repo,
 		"branch":  branch,
 		"user":    session.User,
