@@ -27,6 +27,19 @@ archives:
       - tar.gz
 
 
+brews:
+  - repository:
+      owner: opscompanion
+      name: homebrew-opc
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    directory: Formula
+    homepage: "https://github.com/opscompanion/opc"
+    description: "CLI companion for platform engineers — persistent context, memory, and session management"
+    license: "MIT"
+    skip_upload: false
+    test: |
+      system "#{bin}/opc", "version"
+
 checksum:
   name_template: "checksums.txt"
 
