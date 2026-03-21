@@ -116,7 +116,7 @@ func runInstall(cmd *cobra.Command, args []string) error {
 	fmt.Println("  Generating hooks...")
 	switch ag.HookFormat {
 	case "claude-hooks":
-		if err := generateClaudeHooks(binary, ag); err != nil {
+		if err := generateClaudeHooks(binary, ag, cfg.APIKey); err != nil {
 			return fmt.Errorf("generating hooks: %w", err)
 		}
 	case "codex-hooks":

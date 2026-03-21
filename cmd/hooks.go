@@ -62,9 +62,9 @@ func agentFlagArg(ag agent.Info) string {
 	return " --agent " + string(ag.Name)
 }
 
-func generateClaudeHooks(binary string, ag agent.Info) error {
+func generateClaudeHooks(binary string, ag agent.Info, apiKey ...string) error {
 	af := agentFlagArg(ag)
-	hooks := map[string]interface{}{
+	settings := map[string]interface{}{
 		"hooks": map[string]interface{}{
 			"PreToolUse": []map[string]interface{}{
 				{
@@ -111,7 +111,22 @@ func generateClaudeHooks(binary string, ag agent.Info) error {
 		},
 	}
 
-	data, err := json.MarshalIndent(hooks, "", "  ")
+	// Wire up Claude Code's native OTEL pipeline to OpsCompanion
+	key := ""
+	if len(apiKey) > 0 {
+		key = apiKey[0]
+	}
+	if key != "" && key != "mock-key" {
+		settings["env"] = map[string]string{
+			"CLAUDE_CODE_ENABLE_TELEMETRY":     "1",
+			"OTEL_LOGS_EXPORTER":               "otlp",
+			"OTEL_EXPORTER_OTLP_PROTOCOL":      "http/json",
+			"OTEL_EXPORTER_OTLP_LOGS_ENDPOINT": "https://otel.opscompanion.ai/v1/logs",
+			"OTEL_EXPORTER_OTLP_HEADERS":       "Authorization=Bearer " + key,
+		}
+	}
+
+	data, err := json.MarshalIndent(settings, "", "  ")
 	if err != nil {
 		return err
 	}
@@ -131,14 +146,15 @@ func generateClaudeHooks(binary string, ag agent.Info) error {
 		return fmt.Errorf("writing settings: %w", err)
 	}
 
-	fmt.Printf("Hooks written to %s (agent: %s)\n\n", settingsPath, ag.Name)
-	fmt.Println("Claude Code will now capture every action:")
-	fmt.Println("  - PreToolUse   → log before each tool runs")
-	fmt.Println("  - PostToolUse  → log after each tool completes")
-	fmt.Println("  - SessionStart → load org/team/user context")
-	fmt.Println("  - Stop         → final checkpoint + extract memories")
-	fmt.Println()
-	fmt.Println("Restart your Claude Code session for hooks to take effect.")
+	fmt.Printf("  Hooks written to %s\n\n", settingsPath)
+	fmt.Println("  Claude Code will now:")
+	fmt.Println("    - PreToolUse   → log before each tool runs")
+	fmt.Println("    - PostToolUse  → log after each tool completes")
+	fmt.Println("    - SessionStart → load org/team/user context")
+	fmt.Println("    - Stop         → final checkpoint + extract memories")
+	if key != "" && key != "mock-key" {
+		fmt.Println("    - OTEL         → export logs to OpsCompanion")
+	}
 	return nil
 }
 
