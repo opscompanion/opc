@@ -33,6 +33,7 @@ type CheckpointTrigger struct {
 type CheckpointMeta struct {
 	CheckpointID  string         `json:"checkpoint_id"`
 	SessionID     string         `json:"session_id"`
+	Agent         string         `json:"agent"`
 	Trigger       string         `json:"trigger"`
 	TriggerDetail map[string]any `json:"trigger_detail,omitempty"`
 	EventCount    int            `json:"event_count"`
@@ -183,6 +184,7 @@ func CreateCheckpoint(sessionID string, trigger *CheckpointTrigger) (*Checkpoint
 	// Write without checkpoint_id first, then hash the file to get the ID.
 	meta := &CheckpointMeta{
 		SessionID:     sessionID,
+		Agent:         detectAgent(sessionID),
 		Trigger:       trigger.Reason,
 		TriggerDetail: trigger.Detail,
 		EventCount:    eventCount,
@@ -209,6 +211,30 @@ func CreateCheckpoint(sessionID string, trigger *CheckpointTrigger) (*Checkpoint
 	}
 
 	return meta, nil
+}
+
+// detectAgent infers the calling agent from captured event data.
+func detectAgent(sessionID string) string {
+	logPath := filepath.Join(SessionDir(sessionID), "full.jsonl")
+	data, err := os.ReadFile(logPath)
+	if err != nil {
+		return "unknown"
+	}
+	// Check the first event for transcript_path hints
+	content := string(data)
+	if idx := strings.IndexByte(content, '\n'); idx > 0 {
+		line := content[:idx]
+		if strings.Contains(line, ".claude/") {
+			return "claude-code"
+		}
+		if strings.Contains(line, ".codex/") || strings.Contains(line, "codex") {
+			return "codex"
+		}
+		if strings.Contains(line, ".cursor/") {
+			return "cursor"
+		}
+	}
+	return "unknown"
 }
 
 // ListCheckpoints returns all checkpoints for a session by reading metadata.json.
