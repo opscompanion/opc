@@ -66,12 +66,12 @@ func (c *HTTPClient) do(ctx context.Context, method, path string, body any) ([]b
 }
 
 func (c *HTTPClient) Verify() error {
-	_, err := c.do(context.Background(), http.MethodGet, "/v1/verify", nil)
+	_, err := c.do(context.Background(), http.MethodGet, "/verify", nil)
 	return err
 }
 
 func (c *HTTPClient) StartSession(session models.Session) (*models.FullContext, error) {
-	data, err := c.do(context.Background(), http.MethodPost, "/v1/sessions", session)
+	data, err := c.do(context.Background(), http.MethodPost, "/sessions", session)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +83,7 @@ func (c *HTTPClient) StartSession(session models.Session) (*models.FullContext, 
 }
 
 func (c *HTTPClient) StopSession(sessionID string) ([]models.Memory, error) {
-	data, err := c.do(context.Background(), http.MethodPost, "/v1/sessions/"+sessionID+"/stop", nil)
+	data, err := c.do(context.Background(), http.MethodPost, "/sessions/"+sessionID+"/stop", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +95,7 @@ func (c *HTTPClient) StopSession(sessionID string) ([]models.Memory, error) {
 }
 
 func (c *HTTPClient) ResumeSession(sessionID string) (*models.SessionResumeContext, error) {
-	data, err := c.do(context.Background(), http.MethodPost, "/v1/sessions/"+sessionID+"/resume", nil)
+	data, err := c.do(context.Background(), http.MethodPost, "/sessions/"+sessionID+"/resume", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +107,7 @@ func (c *HTTPClient) ResumeSession(sessionID string) (*models.SessionResumeConte
 }
 
 func (c *HTTPClient) Checkpoint(sessionID string) (*models.Checkpoint, error) {
-	data, err := c.do(context.Background(), http.MethodPost, "/v1/sessions/"+sessionID+"/checkpoint", nil)
+	data, err := c.do(context.Background(), http.MethodPost, "/sessions/"+sessionID+"/checkpoint", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +120,7 @@ func (c *HTTPClient) Checkpoint(sessionID string) (*models.Checkpoint, error) {
 
 func (c *HTTPClient) SaveMemory(content string, tags []string) (*models.Memory, error) {
 	payload := map[string]any{"content": content, "tags": tags}
-	data, err := c.do(context.Background(), http.MethodPost, "/v1/memories", payload)
+	data, err := c.do(context.Background(), http.MethodPost, "/memories", payload)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +133,7 @@ func (c *HTTPClient) SaveMemory(content string, tags []string) (*models.Memory, 
 
 func (c *HTTPClient) SearchMemories(query string) (*models.SearchResult, error) {
 	payload := map[string]string{"query": query}
-	data, err := c.do(context.Background(), http.MethodPost, "/v1/memories/search", payload)
+	data, err := c.do(context.Background(), http.MethodPost, "/memories/search", payload)
 	if err != nil {
 		return nil, err
 	}
@@ -145,7 +145,7 @@ func (c *HTTPClient) SearchMemories(query string) (*models.SearchResult, error) 
 }
 
 func (c *HTTPClient) GetHistory() ([]models.HistoryEntry, error) {
-	data, err := c.do(context.Background(), http.MethodGet, "/v1/history", nil)
+	data, err := c.do(context.Background(), http.MethodGet, "/history", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -157,7 +157,7 @@ func (c *HTTPClient) GetHistory() ([]models.HistoryEntry, error) {
 }
 
 func (c *HTTPClient) GetContext() (*models.FullContext, error) {
-	data, err := c.do(context.Background(), http.MethodGet, "/v1/context", nil)
+	data, err := c.do(context.Background(), http.MethodGet, "/context", nil)
 	if err != nil {
 		return nil, err
 	}
