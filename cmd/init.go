@@ -6,7 +6,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/opscompanion/opc/internal/api"
 	"github.com/opscompanion/opc/internal/config"
 	"github.com/opscompanion/opc/internal/models"
 	"github.com/spf13/cobra"
@@ -55,12 +54,6 @@ func runInit(cmd *cobra.Command, args []string) error {
 	cfg := &models.Config{
 		APIURL: apiURL,
 		APIKey: apiKey,
-	}
-
-	// Validate
-	client := api.New(cfg)
-	if err := client.Verify(); err != nil {
-		return fmt.Errorf("verification failed: %w", err)
 	}
 
 	// Save
