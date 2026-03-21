@@ -1,0 +1,67 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "command": "/opt/homebrew/bin/opc --agent codex capture --hook-type PostToolUse",
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "command": "/opt/homebrew/bin/opc --agent codex capture --hook-type PreToolUse",
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "command": "/opt/homebrew/bin/opc --agent codex session start",
+            "type": "command"
+          }
+        ],
+        "matcher": "startup"
+      },
+      {
+        "hooks": [
+          {
+            "command": "/opt/homebrew/bin/opc --agent codex session checkpoint",
+            "type": "command"
+          }
+        ],
+        "matcher": "compact"
+      },
+      {
+        "hooks": [
+          {
+            "command": "/opt/homebrew/bin/opc --agent codex session resume $CODEX_SESSION_ID",
+            "type": "command"
+          }
+        ],
+        "matcher": "resume"
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "command": "/opt/homebrew/bin/opc --agent codex capture --hook-type Stop",
+            "type": "command"
+          },
+          {
+            "command": "/opt/homebrew/bin/opc --agent codex session stop",
+            "type": "command"
+          }
+        ]
+      }
+    ]
+  }
+}
