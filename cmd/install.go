@@ -120,7 +120,7 @@ func runInstall(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("generating hooks: %w", err)
 		}
 	case "codex-hooks":
-		if err := generateCodexHooks(binary, ag); err != nil {
+		if err := generateCodexHooks(binary, ag, cfg.APIKey); err != nil {
 			return fmt.Errorf("generating hooks: %w", err)
 		}
 	default:
