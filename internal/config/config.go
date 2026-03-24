@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/opscompanion/opc/internal/models"
 )
@@ -13,6 +14,7 @@ import (
 const (
 	configDir  = ".config/opscompanion"
 	configFile = "config.json"
+	DefaultAPIURL = "https://api.opscompanion.ai/v1"
 )
 
 // Path returns the full path to the config file.
@@ -75,6 +77,17 @@ func IsMock(cfg *models.Config) bool {
 		return false
 	}
 	return cfg.APIKey == "mock-key" || os.Getenv("OPSCOMPANION_MOCK") == "true"
+}
+
+// ResolveAPIURL returns the active API URL using env override, config, then default.
+func ResolveAPIURL(cfg *models.Config) string {
+	if envURL := strings.TrimSpace(os.Getenv("OPSCOMPANION_API_URL")); envURL != "" {
+		return strings.TrimRight(envURL, "/")
+	}
+	if cfg != nil && strings.TrimSpace(cfg.APIURL) != "" {
+		return strings.TrimRight(strings.TrimSpace(cfg.APIURL), "/")
+	}
+	return DefaultAPIURL
 }
 
 // RequireConfig loads config and returns an error if not configured.

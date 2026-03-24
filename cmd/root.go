@@ -23,7 +23,7 @@ var rootCmd = &cobra.Command{
 	Use:   "opc",
 	Short: "OpsCompanion CLI for platform operations",
 	Long: `opc is a CLI companion for platform engineers. It provides persistent
-context, memory, and session management for agent-assisted workflows.`,
+context, knowledge, memory, and local capture tooling for agent-assisted workflows.`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		if err := agent.Validate(agentFlag); err != nil {
 			return err

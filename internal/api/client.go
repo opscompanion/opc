@@ -6,26 +6,14 @@ import (
 	"github.com/opscompanion/opc/internal/models"
 )
 
-// Client is the interface for the OpsCompanion API.
+// Client is the interface for the OpsCompanion public API.
 type Client interface {
-	// Auth
-	Verify() error
-
-	// Sessions
-	StartSession(session models.Session) (*models.FullContext, error)
-	StopSession(sessionID string) ([]models.Memory, error)
-	ResumeSession(sessionID string) (*models.SessionResumeContext, error)
-	Checkpoint(sessionID string) (*models.Checkpoint, error)
-
-	// Memories
-	SaveMemory(content string, tags []string) (*models.Memory, error)
-	SearchMemories(query string) (*models.SearchResult, error)
-
-	// History
-	GetHistory() ([]models.HistoryEntry, error)
-
-	// Context
-	GetContext() (*models.FullContext, error)
+	Verify() (*models.WhoAmIResponse, error)
+	GetContext(includeComputedLinks bool) (*models.FullContext, error)
+	SearchKnowledge(req models.KnowledgeSearchRequest) (*models.SearchResult, error)
+	SearchMemory(req models.MemorySearchRequest) (*models.SearchResult, error)
+	GetKnowledgeByPath(path string) (*models.KnowledgeDocument, error)
+	PutKnowledgeByPath(path string, req models.KnowledgePathUpsertRequest) (*models.KnowledgeDocument, error)
 }
 
 // New returns the appropriate client implementation based on config.

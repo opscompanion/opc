@@ -78,7 +78,7 @@ func runInstall(cmd *cobra.Command, args []string) error {
 	cfg, _ := config.Load()
 	if cfg == nil {
 		cfg = &models.Config{
-			APIURL: "https://api.opscompanion.dev/v1",
+			APIURL: config.DefaultAPIURL,
 			APIKey: "mock-key",
 		}
 		if err := config.Save(cfg); err != nil {
@@ -156,10 +156,9 @@ func installClaude(installDir string) error {
 	fmt.Println()
 	fmt.Println("  Skills:")
 	fmt.Println("    /opscompanion-init       Set up OpsCompanion")
-	fmt.Println("    /opscompanion-context    Load org/team/user context")
-	fmt.Println("    /opscompanion-recall     Search team memories")
+	fmt.Println("    /opscompanion-context    Load org/user/workspace context")
+	fmt.Println("    /opscompanion-recall     Search stored knowledge and memory")
 	fmt.Println("    /opscompanion-remember   Save a decision")
-	fmt.Println("    /opscompanion-history    View session history")
 	return nil
 }
 
@@ -197,10 +196,9 @@ func installCodex(installDir string) error {
 	fmt.Println()
 	fmt.Println("  Skills (in ~/.agents/skills/):")
 	fmt.Println("    $opscompanion-init       Set up OpsCompanion")
-	fmt.Println("    $opscompanion-context    Load org/team/user context")
-	fmt.Println("    $opscompanion-recall     Search team memories")
+	fmt.Println("    $opscompanion-context    Load org/user/workspace context")
+	fmt.Println("    $opscompanion-recall     Search stored knowledge and memory")
 	fmt.Println("    $opscompanion-remember   Save a decision")
-	fmt.Println("    $opscompanion-history    View session history")
 	return nil
 }
 

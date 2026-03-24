@@ -37,13 +37,13 @@ opc init
 opc install --agent claude
 opc install --agent codex
 
-# 3. Save a decision
+# 3. Save a decision to organization knowledge
 opc remember "Use connection pooling for Redis — single connections hit latency issues under load" --tags redis,performance
 
-# 4. Search memories
-opc recall "redis connection"
+# 4. Search knowledge and memory
+opc search "redis connection"
 
-# 5. View org/team context
+# 5. View org/user/workspace context
 opc context
 ```
 
@@ -52,9 +52,9 @@ opc context
 Every command accepts `--agent <name>` to normalize behavior across runtimes:
 
 ```bash
-opc --agent claude recall "auth migration"   # from Claude Code hooks
-opc --agent codex  recall "auth migration"   # from Codex hooks
-opc recall "auth migration"                  # human mode (auto-detect from env)
+opc --agent claude search "auth migration"   # from Claude Code hooks
+opc --agent codex  search "auth migration"   # from Codex hooks
+opc search "auth migration"                  # human mode (auto-detect from env)
 ```
 
 The flag controls:
@@ -75,29 +75,23 @@ Agent (Claude Code, Codex, Cursor, etc.)
   → fires hook events
     → opc capture (writes to local JSONL buffer)
       → checkpoint triggers (git commit, every 50 events, session stop)
-        → sync to OpsCompanion API
-          → extraction pipeline → shared memories
+        → local session artifacts
 ```
 
-Memories extracted from one agent are available to all agents via `opc recall`. No MCP required — hooks are deterministic and don't bloat context with tool schemas.
+Shared knowledge and memory are available via `opc search`. No MCP required — hooks are deterministic and don't bloat context with tool schemas.
 
 ## Commands
 
 | Command | Description |
 |---------|-------------|
-| `opc init` | Configure API key and endpoint |
+| `opc init` | Configure API key |
 | `opc install` | Install skills, hooks, and plugins for an agent (`--agent` required) |
 | `opc hooks` | Generate hook configuration for the active agent |
-| `opc context` | Display org, team, and user context |
-| `opc session start` | Start a new session with context loading |
-| `opc session stop` | End session and extract memories |
-| `opc session resume <id>` | Resume a previous session |
+| `opc context` | Display org, user, integration, and workspace context |
 | `opc session list` | List local sessions |
 | `opc session inspect <id>` | Inspect session events and checkpoints |
-| `opc session checkpoint` | Create a manual checkpoint |
 | `opc remember <text>` | Save a decision or discovery (`--tags` to add tags) |
-| `opc recall <query>` | Search stored memories |
-| `opc history` | View session history with decisions |
+| `opc search <query>` | Search stored knowledge and memory |
 | `opc capture` | Capture hook events from stdin (used by hooks) |
 | `opc version` | Print version info |
 
@@ -107,8 +101,8 @@ All commands accept the global `--agent` flag.
 
 OPC follows a **thin client, smart server** design:
 
-- **Client** — captures events, buffers locally as JSONL, syncs to API
-- **Server** — handles extraction, dedup, semantic search, ranking
+- **Client** — captures events, buffers locally as JSONL, and calls the public API for context/knowledge/memory
+- **Server** — handles context assembly and knowledge/memory search
 - **No local database** — `/tmp/opc/sessions/` is a temporary buffer
 
 This means intelligence improves server-side without shipping binary updates.
@@ -120,7 +114,7 @@ Multiple agents can share knowledge in near-real-time:
 ```
 Agent A discovers a bug → checkpoint → API extracts memory
                                               ↓
-Agent B asks about the same area → opc recall → gets Agent A's discovery
+Agent B asks about the same area → opc search → gets Agent A's discovery
 ```
 
 ### Memory layers
