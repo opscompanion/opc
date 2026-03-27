@@ -41,7 +41,7 @@ opc install --agent codex
 opc remember "Use connection pooling for Redis — single connections hit latency issues under load" --tags redis,performance
 
 # 4. Search memories
-opc recall "redis connection"
+opc search "redis connection"
 
 # 5. View org/team context
 opc context
@@ -54,7 +54,7 @@ Every command accepts `--agent <name>` to normalize behavior across runtimes:
 ```bash
 opc --agent claude recall "auth migration"   # from Claude Code hooks
 opc --agent codex  recall "auth migration"   # from Codex hooks
-opc recall "auth migration"                  # human mode (auto-detect from env)
+opc search "auth migration"                  # human mode (auto-detect from env)
 ```
 
 The flag controls:
@@ -79,7 +79,7 @@ Agent (Claude Code, Codex, Cursor, etc.)
           → extraction pipeline → shared memories
 ```
 
-Memories extracted from one agent are available to all agents via `opc recall`. No MCP required — hooks are deterministic and don't bloat context with tool schemas.
+Memories extracted from one agent are available to all agents via `opc search`. No MCP required — hooks are deterministic and don't bloat context with tool schemas.
 
 ## Commands
 
@@ -96,8 +96,7 @@ Memories extracted from one agent are available to all agents via `opc recall`. 
 | `opc session inspect <id>` | Inspect session events and checkpoints |
 | `opc session checkpoint` | Create a manual checkpoint |
 | `opc remember <text>` | Save a decision or discovery (`--tags` to add tags) |
-| `opc recall <query>` | Search stored memories |
-| `opc history` | View session history with decisions |
+| `opc search <query>` | Search stored memories |
 | `opc capture` | Capture hook events from stdin (used by hooks) |
 | `opc version` | Print version info |
 
@@ -120,7 +119,7 @@ Multiple agents can share knowledge in near-real-time:
 ```
 Agent A discovers a bug → checkpoint → API extracts memory
                                               ↓
-Agent B asks about the same area → opc recall → gets Agent A's discovery
+Agent B asks about the same area → opc search → gets Agent A's discovery
 ```
 
 ### Memory layers

@@ -10,10 +10,11 @@ import (
 )
 
 var recallCmd = &cobra.Command{
-	Use:   "recall <query>",
-	Short: "Search stored memories by keyword or semantic similarity",
-	Args:  cobra.MinimumNArgs(1),
-	RunE:  runRecall,
+	Use:     "search <query>",
+	Aliases: []string{"recall"},
+	Short:   "Search stored memories by keyword or semantic similarity",
+	Args:    cobra.MinimumNArgs(1),
+	RunE:    runRecall,
 }
 
 func init() {

@@ -157,9 +157,8 @@ func installClaude(installDir string) error {
 	fmt.Println("  Skills:")
 	fmt.Println("    /opscompanion-init       Set up OpsCompanion")
 	fmt.Println("    /opscompanion-context    Load org/team/user context")
-	fmt.Println("    /opscompanion-recall     Search team memories")
+	fmt.Println("    /opscompanion-search     Search team memories")
 	fmt.Println("    /opscompanion-remember   Save a decision")
-	fmt.Println("    /opscompanion-history    View session history")
 	return nil
 }
 
@@ -175,9 +174,8 @@ func installCodex(installDir string) error {
 	skills := []string{
 		"opscompanion-init",
 		"opscompanion-context",
-		"opscompanion-recall",
+		"opscompanion-search",
 		"opscompanion-remember",
-		"opscompanion-history",
 	}
 
 	for _, skill := range skills {
@@ -198,9 +196,8 @@ func installCodex(installDir string) error {
 	fmt.Println("  Skills (in ~/.agents/skills/):")
 	fmt.Println("    $opscompanion-init       Set up OpsCompanion")
 	fmt.Println("    $opscompanion-context    Load org/team/user context")
-	fmt.Println("    $opscompanion-recall     Search team memories")
+	fmt.Println("    $opscompanion-search     Search team memories")
 	fmt.Println("    $opscompanion-remember   Save a decision")
-	fmt.Println("    $opscompanion-history    View session history")
 	return nil
 }
 
@@ -239,8 +236,7 @@ func humanSkills() string {
 	return strings.Join([]string{
 		"/opscompanion-init",
 		"/opscompanion-context",
-		"/opscompanion-recall",
+		"/opscompanion-search",
 		"/opscompanion-remember",
-		"/opscompanion-history",
 	}, ", ")
 }
