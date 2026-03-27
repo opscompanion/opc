@@ -6,10 +6,14 @@ import (
 	"os"
 	"strings"
 
+	"golang.org/x/term"
+	"github.com/opscompanion/opc/internal/api"
 	"github.com/opscompanion/opc/internal/config"
 	"github.com/opscompanion/opc/internal/models"
 	"github.com/spf13/cobra"
 )
+
+var initAPIURL string
 
 var initCmd = &cobra.Command{
 	Use:   "init",
@@ -18,6 +22,8 @@ var initCmd = &cobra.Command{
 }
 
 func init() {
+	initCmd.Flags().StringVar(&initAPIURL, "api-url", "", "override the OpsCompanion API URL")
+	_ = initCmd.Flags().MarkHidden("api-url")
 	rootCmd.AddCommand(initCmd)
 }
 
@@ -38,22 +44,33 @@ func runInit(cmd *cobra.Command, args []string) error {
 
 	// Collect inputs
 	fmt.Print("API Key: ")
-	apiKey, _ := reader.ReadString('\n')
-	apiKey = strings.TrimSpace(apiKey)
+	apiKeyBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
+	fmt.Println()
+	if err != nil {
+		return fmt.Errorf("reading API key: %w", err)
+	}
+	apiKey := strings.TrimSpace(string(apiKeyBytes))
 	if apiKey == "" {
 		return fmt.Errorf("API key is required")
 	}
 
-	fmt.Print("API URL [https://api.opscompanion.dev/v1]: ")
-	apiURL, _ := reader.ReadString('\n')
-	apiURL = strings.TrimSpace(apiURL)
-	if apiURL == "" {
-		apiURL = "https://api.opscompanion.dev/v1"
+	cfg := &models.Config{
+		APIKey: apiKey,
+	}
+	if strings.TrimSpace(initAPIURL) != "" {
+		cfg.APIURL = strings.TrimRight(strings.TrimSpace(initAPIURL), "/")
+	} else if envURL := strings.TrimSpace(os.Getenv("OPSCOMPANION_API_URL")); envURL != "" {
+		cfg.APIURL = strings.TrimRight(envURL, "/")
+	} else if existing != nil && strings.TrimSpace(existing.APIURL) != "" {
+		cfg.APIURL = strings.TrimRight(strings.TrimSpace(existing.APIURL), "/")
+	} else {
+		cfg.APIURL = config.DefaultAPIURL
 	}
 
-	cfg := &models.Config{
-		APIURL: apiURL,
-		APIKey: apiKey,
+	client := api.New(cfg)
+	whoami, err := client.Verify()
+	if err != nil {
+		return fmt.Errorf("verifying API key with %s: %w", cfg.APIURL, err)
 	}
 
 	// Save
@@ -68,8 +85,16 @@ func runInit(cmd *cobra.Command, args []string) error {
 
 	fmt.Println()
 	fmt.Println("Configuration saved.")
-	fmt.Printf("  API URL: %s\n", apiURL)
+	fmt.Printf("  API URL: %s\n", cfg.APIURL)
 	fmt.Printf("  API Key: %s\n", masked)
+	fmt.Printf("  Owner:   %s\n", whoami.APIKey.OwnerType)
+	fmt.Printf("  Org:     %s\n", whoami.Organization.PublicID)
+	if whoami.User != nil {
+		fmt.Printf("  User:    %s\n", whoami.User.PublicID)
+	}
+	if len(whoami.APIKey.Scopes) > 0 {
+		fmt.Printf("  Scopes:  %s\n", strings.Join(whoami.APIKey.Scopes, ", "))
+	}
 
 	p, _ := config.Path()
 	fmt.Printf("  File:    %s\n", p)

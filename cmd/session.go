@@ -6,7 +6,7 @@ import (
 
 var sessionCmd = &cobra.Command{
 	Use:   "session",
-	Short: "Manage agent sessions (start, stop, resume, checkpoint)",
+	Short: "Inspect local captured sessions",
 }
 
 func init() {

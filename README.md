@@ -37,13 +37,13 @@ opc init
 opc install --agent claude
 opc install --agent codex
 
-# 3. Save a decision
+# 3. Save a decision to organization knowledge
 opc remember "Use connection pooling for Redis — single connections hit latency issues under load" --tags redis,performance
 
-# 4. Search memories
+# 4. Search knowledge and memory
 opc search "redis connection"
 
-# 5. View org/team context
+# 5. View org/user/workspace context
 opc context
 ```
 
@@ -75,28 +75,23 @@ Agent (Claude Code, Codex, Cursor, etc.)
   → fires hook events
     → opc capture (writes to local JSONL buffer)
       → checkpoint triggers (git commit, every 50 events, session stop)
-        → sync to OpsCompanion API
-          → extraction pipeline → shared memories
+        → local session artifacts
 ```
 
-Memories extracted from one agent are available to all agents via `opc search`. No MCP required — hooks are deterministic and don't bloat context with tool schemas.
+Shared knowledge and memory are available via `opc search`. No MCP required — hooks are deterministic and don't bloat context with tool schemas.
 
 ## Commands
 
 | Command | Description |
 |---------|-------------|
-| `opc init` | Configure API key and endpoint |
+| `opc init` | Configure API key |
 | `opc install` | Install skills, hooks, and plugins for an agent (`--agent` required) |
 | `opc hooks` | Generate hook configuration for the active agent |
-| `opc context` | Display org, team, and user context |
-| `opc session start` | Start a new session with context loading |
-| `opc session stop` | End session and extract memories |
-| `opc session resume <id>` | Resume a previous session |
+| `opc context` | Display org, user, integration, and workspace context |
 | `opc session list` | List local sessions |
 | `opc session inspect <id>` | Inspect session events and checkpoints |
-| `opc session checkpoint` | Create a manual checkpoint |
 | `opc remember <text>` | Save a decision or discovery (`--tags` to add tags) |
-| `opc search <query>` | Search stored memories |
+| `opc search <query>` | Search stored knowledge and memory |
 | `opc capture` | Capture hook events from stdin (used by hooks) |
 | `opc version` | Print version info |
 
@@ -106,8 +101,8 @@ All commands accept the global `--agent` flag.
 
 OPC follows a **thin client, smart server** design:
 
-- **Client** — captures events, buffers locally as JSONL, syncs to API
-- **Server** — handles extraction, dedup, semantic search, ranking
+- **Client** — captures events, buffers locally as JSONL, and calls the public API for context/knowledge/memory
+- **Server** — handles context assembly and knowledge/memory search
 - **No local database** — `/tmp/opc/sessions/` is a temporary buffer
 
 This means intelligence improves server-side without shipping binary updates.

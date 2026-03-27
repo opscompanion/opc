@@ -78,7 +78,7 @@ func runInstall(cmd *cobra.Command, args []string) error {
 	cfg, _ := config.Load()
 	if cfg == nil {
 		cfg = &models.Config{
-			APIURL: "https://api.opscompanion.dev/v1",
+			APIURL: config.DefaultAPIURL,
 			APIKey: "mock-key",
 		}
 		if err := config.Save(cfg); err != nil {
