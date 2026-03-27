@@ -18,7 +18,6 @@ Long: `Generates hook configuration for the active agent runtime.
 For Claude Code (default), writes .claude/settings.local.json with hooks:
   - PreToolUse  → captures every tool invocation before execution
   - PostToolUse → captures every tool result (Bash, Write, Edit, Read, etc.)
-  - Stop        → captures session end and final tool state
 
 For Codex, writes .codex/hooks.json with the equivalent event bindings.
 For other agents, prints a generic shell snippet.
@@ -65,6 +64,20 @@ func generateClaudeHooks(binary string, ag agent.Info, apiKey ...string) error {
 	af := agentFlagArg(ag)
 	settings := map[string]interface{}{
 		"hooks": map[string]interface{}{
+			"SessionStart": []map[string]interface{}{
+				{
+					"hooks": []map[string]string{
+						{"type": "command", "command": binary + af + " capture --hook-type SessionStart"},
+					},
+				},
+			},
+			"UserPromptSubmit": []map[string]interface{}{
+				{
+					"hooks": []map[string]string{
+						{"type": "command", "command": binary + af + " capture --hook-type UserPromptSubmit"},
+					},
+				},
+			},
 			"PreToolUse": []map[string]interface{}{
 				{
 					"hooks": []map[string]string{
@@ -76,13 +89,6 @@ func generateClaudeHooks(binary string, ag agent.Info, apiKey ...string) error {
 				{
 					"hooks": []map[string]string{
 						{"type": "command", "command": binary + af + " capture --hook-type PostToolUse"},
-					},
-				},
-			},
-			"Stop": []map[string]interface{}{
-				{
-					"hooks": []map[string]string{
-						{"type": "command", "command": binary + af + " capture --hook-type Stop"},
 					},
 				},
 			},
@@ -126,9 +132,10 @@ func generateClaudeHooks(binary string, ag agent.Info, apiKey ...string) error {
 
 	fmt.Printf("  Hooks written to %s\n\n", settingsPath)
 	fmt.Println("  Claude Code will now:")
-	fmt.Println("    - PreToolUse   → log before each tool runs")
-	fmt.Println("    - PostToolUse  → log after each tool completes")
-	fmt.Println("    - Stop         → capture session-end events")
+	fmt.Println("    - SessionStart     → load org context + git state")
+	fmt.Println("    - UserPromptSubmit → evaluate skill activation")
+	fmt.Println("    - PreToolUse       → log before each tool runs")
+	fmt.Println("    - PostToolUse      → log after each tool completes")
 	if key != "" && key != "mock-key" {
 		fmt.Println("    - OTEL         → export logs to OpsCompanion")
 	}
@@ -140,6 +147,20 @@ func generateCodexHooks(binary string, ag agent.Info, apiKey ...string) error {
 
 	hooks := map[string]interface{}{
 		"hooks": map[string]interface{}{
+			"SessionStart": []map[string]interface{}{
+				{
+					"hooks": []map[string]string{
+						{"type": "command", "command": binary + af + " capture --hook-type SessionStart"},
+					},
+				},
+			},
+			"UserPromptSubmit": []map[string]interface{}{
+				{
+					"hooks": []map[string]string{
+						{"type": "command", "command": binary + af + " capture --hook-type UserPromptSubmit"},
+					},
+				},
+			},
 			"PreToolUse": []map[string]interface{}{
 				{
 					"hooks": []map[string]string{
@@ -151,13 +172,6 @@ func generateCodexHooks(binary string, ag agent.Info, apiKey ...string) error {
 				{
 					"hooks": []map[string]string{
 						{"type": "command", "command": binary + af + " capture --hook-type PostToolUse"},
-					},
-				},
-			},
-			"Stop": []map[string]interface{}{
-				{
-					"hooks": []map[string]string{
-						{"type": "command", "command": binary + af + " capture --hook-type Stop"},
 					},
 				},
 			},
@@ -222,7 +236,6 @@ exporter = { otlp-http = {
 	fmt.Println("  Codex will now:")
 	fmt.Println("    - PreToolUse   → log before each tool runs")
 	fmt.Println("    - PostToolUse  → log after each tool completes")
-	fmt.Println("    - Stop         → capture session-end events")
 	if key != "" && key != "mock-key" {
 		fmt.Println("    - OTEL         → export logs to OpsCompanion")
 	}
@@ -233,10 +246,12 @@ func generateGenericHooks(binary string, ag agent.Info) error {
 	af := agentFlagArg(ag)
 	fmt.Printf("# opc hook commands for agent: %s\n", ag.Name)
 	fmt.Printf("# Add these to your agent's hook/plugin configuration:\n\n")
-	fmt.Printf("# Tool capture\n")
+	fmt.Printf("# Governance\n")
+	fmt.Printf("on_session_start:  %s%s capture --hook-type SessionStart\n", binary, af)
+	fmt.Printf("on_prompt_submit:  %s%s capture --hook-type UserPromptSubmit\n", binary, af)
+	fmt.Printf("\n# Tool capture\n")
 	fmt.Printf("on_tool_pre:  %s%s capture --hook-type PreToolUse\n", binary, af)
 	fmt.Printf("on_tool_post: %s%s capture --hook-type PostToolUse\n", binary, af)
-	fmt.Printf("on_session_stop: %s%s capture --hook-type Stop\n", binary, af)
 	fmt.Println()
 	fmt.Println("Pipe tool invocation JSON to stdin for capture commands.")
 	return nil
