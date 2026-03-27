@@ -12,7 +12,6 @@ import (
 	"github.com/opscompanion/opc/internal/api"
 	"github.com/opscompanion/opc/internal/capture"
 	"github.com/opscompanion/opc/internal/config"
-	"github.com/opscompanion/opc/internal/scan"
 	"github.com/spf13/cobra"
 )
 
@@ -113,13 +112,6 @@ func runSessionStart() error {
 	// Git state
 	if git := gitSummary(); git != "" {
 		sections = append(sections, git)
-	}
-
-	// Code map (tree-sitter scan with caching)
-	if wd, err := os.Getwd(); err == nil {
-		if codeMap, err := scan.Repo(wd); err == nil && codeMap != "" {
-			sections = append(sections, codeMap)
-		}
 	}
 
 	// API context (best-effort)
