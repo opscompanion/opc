@@ -203,9 +203,11 @@ func generateCodexHooks(binary string, ag agent.Info, apiKey ...string) error {
 
 		configPath := filepath.Join(codexHome, "config.toml")
 		otelConfig := fmt.Sprintf(`[otel]
+environment = "prod"
+log_user_prompt = false
 exporter = { otlp-http = {
   endpoint = "https://otel.opscompanion.ai/v1/logs",
-  protocol = "http/json",
+  protocol = "binary",
   headers = { "Authorization" = "Bearer %s" }
 }}
 `, key)

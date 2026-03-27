@@ -24,40 +24,17 @@
       {
         "hooks": [
           {
-            "command": "/opt/homebrew/bin/opc --agent codex session start",
+            "command": "/opt/homebrew/bin/opc --agent codex capture --hook-type SessionStart",
             "type": "command"
           }
-        ],
-        "matcher": "startup"
-      },
-      {
-        "hooks": [
-          {
-            "command": "/opt/homebrew/bin/opc --agent codex session checkpoint",
-            "type": "command"
-          }
-        ],
-        "matcher": "compact"
-      },
-      {
-        "hooks": [
-          {
-            "command": "/opt/homebrew/bin/opc --agent codex session resume $CODEX_SESSION_ID",
-            "type": "command"
-          }
-        ],
-        "matcher": "resume"
+        ]
       }
     ],
-    "Stop": [
+    "UserPromptSubmit": [
       {
         "hooks": [
           {
-            "command": "/opt/homebrew/bin/opc --agent codex capture --hook-type Stop",
-            "type": "command"
-          },
-          {
-            "command": "/opt/homebrew/bin/opc --agent codex session stop",
+            "command": "/opt/homebrew/bin/opc --agent codex capture --hook-type UserPromptSubmit",
             "type": "command"
           }
         ]
