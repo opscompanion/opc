@@ -52,8 +52,8 @@ opc context
 Every command accepts `--agent <name>` to normalize behavior across runtimes:
 
 ```bash
-opc --agent claude search "auth migration"   # from Claude Code hooks
-opc --agent codex  search "auth migration"   # from Codex hooks
+opc --agent claude recall "auth migration"   # from Claude Code hooks
+opc --agent codex  recall "auth migration"   # from Codex hooks
 opc search "auth migration"                  # human mode (auto-detect from env)
 ```
 

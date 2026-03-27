@@ -5,12 +5,11 @@ import (
 )
 
 var recallCmd = &cobra.Command{
-	Use:        "recall <query>",
-	Short:      "Deprecated alias for search",
-	Args:       cobra.MinimumNArgs(1),
-	Hidden:     true,
-	Deprecated: "use `opc search`",
-	RunE:       runSearch,
+	Use:     "search <query>",
+	Aliases: []string{"recall"},
+	Short:   "Search stored memories by keyword or semantic similarity",
+	Args:    cobra.MinimumNArgs(1),
+	RunE:    runRecall,
 }
 
 func init() {
