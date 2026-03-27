@@ -19,6 +19,8 @@ const (
 	releasesURL  = "https://api.github.com/repos/opscompanion/opc/releases/latest"
 )
 
+var latestVersionFetcher = fetchLatest
+
 type cacheEntry struct {
 	Latest    string    `json:"latest"`
 	CheckedAt time.Time `json:"checked_at"`
@@ -51,7 +53,7 @@ func Check(currentVersion string, forceRefresh bool) string {
 
 	if latest == "" {
 		var err error
-		latest, err = fetchLatest()
+		latest, err = latestVersionFetcher()
 		if err != nil {
 			return ""
 		}
@@ -162,4 +164,3 @@ func parseSemver(v string) []int {
 	}
 	return nums
 }
-

@@ -1,19 +1,19 @@
 package update
 
 import (
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
+	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
 
 func TestNewerThan(t *testing.T) {
 	tests := []struct {
-		latest, current string
-		want            bool
+		latest  string
+		current string
+		want    bool
 	}{
 		{"v0.3.1", "v0.2.1", true},
 		{"v1.0.0", "v0.9.9", true},
@@ -21,18 +21,19 @@ func TestNewerThan(t *testing.T) {
 		{"v0.2.1", "v0.2.1", false},
 		{"v0.2.0", "v0.2.1", false},
 		{"v0.1.0", "v0.2.1", false},
-		{"0.3.1", "0.2.1", true},    // no v prefix
-		{"v1.0.0", "0.9.0", true},   // mixed prefix
-		{"v1.0.0-rc1", "v0.9.0", true}, // pre-release stripped
+		{"0.3.1", "0.2.1", true},
+		{"v1.0.0", "0.9.0", true},
+		{"v1.0.0-rc1", "v0.9.0", true},
 		{"invalid", "v0.2.1", false},
 		{"v0.2.1", "invalid", false},
 		{"", "", false},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.latest+"_vs_"+tt.current, func(t *testing.T) {
 			got := newerThan(tt.latest, tt.current)
 			if got != tt.want {
-				t.Errorf("newerThan(%q, %q) = %v, want %v", tt.latest, tt.current, got, tt.want)
+				t.Fatalf("newerThan(%q, %q) = %v, want %v", tt.latest, tt.current, got, tt.want)
 			}
 		})
 	}
@@ -50,21 +51,22 @@ func TestParseSemver(t *testing.T) {
 		{"abc", nil},
 		{"", nil},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
 			got := parseSemver(tt.input)
 			if tt.want == nil {
 				if got != nil {
-					t.Errorf("parseSemver(%q) = %v, want nil", tt.input, got)
+					t.Fatalf("parseSemver(%q) = %v, want nil", tt.input, got)
 				}
 				return
 			}
-			if len(got) != 3 {
-				t.Fatalf("parseSemver(%q) = %v, want %v", tt.input, got, tt.want)
+			if len(got) != len(tt.want) {
+				t.Fatalf("parseSemver(%q) len = %d, want %d", tt.input, len(got), len(tt.want))
 			}
 			for i := range got {
 				if got[i] != tt.want[i] {
-					t.Errorf("parseSemver(%q)[%d] = %d, want %d", tt.input, i, got[i], tt.want[i])
+					t.Fatalf("parseSemver(%q)[%d] = %d, want %d", tt.input, i, got[i], tt.want[i])
 				}
 			}
 		})
@@ -73,7 +75,7 @@ func TestParseSemver(t *testing.T) {
 
 func TestCacheReadWrite(t *testing.T) {
 	dir := t.TempDir()
-	path := filepath.Join(dir, "version-check.json")
+	path := filepath.Join(dir, cacheFile)
 
 	entry := cacheEntry{
 		Latest:    "v0.3.1",
@@ -89,88 +91,104 @@ func TestCacheReadWrite(t *testing.T) {
 		t.Fatalf("readCache: %v", err)
 	}
 	if got.Latest != entry.Latest {
-		t.Errorf("Latest = %q, want %q", got.Latest, entry.Latest)
+		t.Fatalf("Latest = %q, want %q", got.Latest, entry.Latest)
 	}
 	if !got.CheckedAt.Equal(entry.CheckedAt) {
-		t.Errorf("CheckedAt = %v, want %v", got.CheckedAt, entry.CheckedAt)
+		t.Fatalf("CheckedAt = %v, want %v", got.CheckedAt, entry.CheckedAt)
 	}
 }
 
 func TestCacheReadMissing(t *testing.T) {
 	_, err := readCache(filepath.Join(t.TempDir(), "nonexistent.json"))
 	if err == nil {
-		t.Error("expected error for missing cache file")
+		t.Fatal("expected error for missing cache file")
 	}
 }
 
 func TestCheckSkipsDevVersion(t *testing.T) {
 	if msg := Check("dev", false); msg != "" {
-		t.Errorf("Check('dev') = %q, want empty", msg)
+		t.Fatalf("Check(dev) = %q, want empty", msg)
 	}
 	if msg := Check("", false); msg != "" {
-		t.Errorf("Check('') = %q, want empty", msg)
+		t.Fatalf("Check(\"\") = %q, want empty", msg)
 	}
 }
 
-func TestCheckWithMockServer(t *testing.T) {
-	// Start a mock GitHub releases server
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(githubRelease{TagName: "v0.5.0"})
-	}))
-	defer server.Close()
-
-	// Temporarily override the releases URL by using a custom cache
-	// We'll test the full flow by pre-populating a fresh cache
-	dir := t.TempDir()
-	cachePath := filepath.Join(dir, cacheFile)
-
-	// Write a "stale" cache pointing to an older version
-	entry := cacheEntry{
-		Latest:    "v0.3.0",
-		CheckedAt: time.Now(), // fresh cache
-	}
-	if err := writeCache(cachePath, entry); err != nil {
-		t.Fatal(err)
-	}
-
-	// Read it back and verify
-	got, err := readCache(cachePath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got.Latest != "v0.3.0" {
-		t.Errorf("cached Latest = %q, want v0.3.0", got.Latest)
-	}
-
-	// Verify newerThan would detect the update
-	if !newerThan("v0.3.0", "v0.2.1") {
-		t.Error("newerThan(v0.3.0, v0.2.1) should be true")
-	}
-}
-
-func TestCheckUseFreshCache(t *testing.T) {
-	// Set up a temp config dir with a fresh cache
+func TestCheckUsesFreshCache(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", dir)
 
-	cacheDir := filepath.Join(dir, "opscompanion")
-	os.MkdirAll(cacheDir, 0o755)
-
-	entry := cacheEntry{
+	cachePath := filepath.Join(dir, "opscompanion", cacheFile)
+	if err := writeCache(cachePath, cacheEntry{
 		Latest:    "v1.0.0",
 		CheckedAt: time.Now(),
+	}); err != nil {
+		t.Fatalf("writeCache: %v", err)
 	}
-	writeCache(filepath.Join(cacheDir, cacheFile), entry)
+
+	originalFetcher := latestVersionFetcher
+	latestVersionFetcher = func() (string, error) {
+		t.Fatal("fetcher should not be called when cache is fresh")
+		return "", nil
+	}
+	t.Cleanup(func() {
+		latestVersionFetcher = originalFetcher
+	})
 
 	msg := Check("v0.5.0", false)
-	if msg == "" {
-		t.Error("expected update hint, got empty")
+	if !strings.Contains(msg, "v1.0.0") {
+		t.Fatalf("hint should mention cached version, got %q", msg)
 	}
-	if !contains(msg, "v1.0.0") {
-		t.Errorf("hint should mention v1.0.0, got: %s", msg)
+}
+
+func TestCheckForceRefreshBypassesCache(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+
+	cachePath := filepath.Join(dir, "opscompanion", cacheFile)
+	if err := writeCache(cachePath, cacheEntry{
+		Latest:    "v0.4.0",
+		CheckedAt: time.Now(),
+	}); err != nil {
+		t.Fatalf("writeCache: %v", err)
 	}
-	if !contains(msg, "brew upgrade opc") {
-		t.Errorf("hint should mention brew upgrade, got: %s", msg)
+
+	originalFetcher := latestVersionFetcher
+	latestVersionFetcher = func() (string, error) {
+		return "v0.9.0", nil
+	}
+	t.Cleanup(func() {
+		latestVersionFetcher = originalFetcher
+	})
+
+	msg := Check("v0.5.0", true)
+	if !strings.Contains(msg, "v0.9.0") {
+		t.Fatalf("hint should mention refreshed version, got %q", msg)
+	}
+
+	got, err := readCache(cachePath)
+	if err != nil {
+		t.Fatalf("readCache: %v", err)
+	}
+	if got.Latest != "v0.9.0" {
+		t.Fatalf("cache latest = %q, want %q", got.Latest, "v0.9.0")
+	}
+}
+
+func TestCheckFetchFailureReturnsEmpty(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+
+	originalFetcher := latestVersionFetcher
+	latestVersionFetcher = func() (string, error) {
+		return "", errors.New("boom")
+	}
+	t.Cleanup(func() {
+		latestVersionFetcher = originalFetcher
+	})
+
+	if msg := Check("v0.5.0", true); msg != "" {
+		t.Fatalf("Check should suppress fetch failure, got %q", msg)
 	}
 }
 
@@ -178,30 +196,37 @@ func TestCheckNoUpdateWhenCurrent(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", dir)
 
-	cacheDir := filepath.Join(dir, "opscompanion")
-	os.MkdirAll(cacheDir, 0o755)
-
-	entry := cacheEntry{
+	cachePath := filepath.Join(dir, "opscompanion", cacheFile)
+	if err := writeCache(cachePath, cacheEntry{
 		Latest:    "v0.5.0",
 		CheckedAt: time.Now(),
+	}); err != nil {
+		t.Fatalf("writeCache: %v", err)
 	}
-	writeCache(filepath.Join(cacheDir, cacheFile), entry)
 
-	msg := Check("v0.5.0", false)
-	if msg != "" {
-		t.Errorf("expected no hint when current, got: %s", msg)
+	if msg := Check("v0.5.0", false); msg != "" {
+		t.Fatalf("expected no hint when current, got %q", msg)
 	}
 }
 
-func contains(s, sub string) bool {
-	return len(s) >= len(sub) && (s == sub || len(s) > 0 && containsSubstring(s, sub))
+func TestConfigDirFallsBackToHome(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", "")
+
+	got := configDir()
+	want := filepath.Join(home, ".config", "opscompanion")
+	if got != want {
+		t.Fatalf("configDir() = %q, want %q", got, want)
+	}
 }
 
-func containsSubstring(s, sub string) bool {
-	for i := 0; i <= len(s)-len(sub); i++ {
-		if s[i:i+len(sub)] == sub {
-			return true
-		}
+func TestWriteCacheCreatesDirectory(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "nested", cacheFile)
+	if err := writeCache(path, cacheEntry{Latest: "v1.2.3", CheckedAt: time.Now()}); err != nil {
+		t.Fatalf("writeCache: %v", err)
 	}
-	return false
+	if _, err := os.Stat(path); err != nil {
+		t.Fatalf("expected cache file to exist: %v", err)
+	}
 }
