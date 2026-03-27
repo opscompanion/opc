@@ -200,23 +200,29 @@ func generateCodexHooks(binary string, ag agent.Info, apiKey ...string) error {
 
 	fmt.Printf("  Hooks written to %s\n", hooksPath)
 
-	// Write OTEL config to ~/.codex/config.toml
+	// Write config to ~/.codex/config.toml
 	key := ""
 	if len(apiKey) > 0 {
 		key = apiKey[0]
 	}
-	if key != "" && key != "mock-key" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return fmt.Errorf("cannot determine home directory: %w", err)
-		}
-		codexHome := filepath.Join(home, ".codex")
-		if err := os.MkdirAll(codexHome, 0755); err != nil {
-			return fmt.Errorf("creating ~/.codex directory: %w", err)
-		}
 
-		configPath := filepath.Join(codexHome, "config.toml")
-		otelConfig := fmt.Sprintf(`[otel]
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("cannot determine home directory: %w", err)
+	}
+	codexHome := filepath.Join(home, ".codex")
+	if err := os.MkdirAll(codexHome, 0755); err != nil {
+		return fmt.Errorf("creating ~/.codex directory: %w", err)
+	}
+
+	configPath := filepath.Join(codexHome, "config.toml")
+
+	var configToml string
+	configToml += "[features]\ncodex_hooks = true\n"
+
+	if key != "" && key != "mock-key" {
+		configToml += fmt.Sprintf(`
+[otel]
 environment = "prod"
 log_user_prompt = false
 exporter = { otlp-http = {
@@ -225,12 +231,12 @@ exporter = { otlp-http = {
   headers = { "Authorization" = "Bearer %s" }
 }}
 `, key)
-
-		if err := os.WriteFile(configPath, []byte(otelConfig), 0600); err != nil {
-			return fmt.Errorf("writing config.toml: %w", err)
-		}
-		fmt.Printf("  OTEL config written to %s\n", configPath)
 	}
+
+	if err := os.WriteFile(configPath, []byte(configToml), 0600); err != nil {
+		return fmt.Errorf("writing config.toml: %w", err)
+	}
+	fmt.Printf("  Config written to %s\n", configPath)
 
 	fmt.Println()
 	fmt.Println("  Codex will now:")
