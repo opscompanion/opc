@@ -13,7 +13,7 @@ import (
 var hooksCmd = &cobra.Command{
 	Use:   "hooks",
 	Short: "Generate agent hook configuration",
-Long: `Generates hook configuration for the active agent runtime.
+	Long: `Generates hook configuration for the active agent runtime.
 
 For Claude Code (default), writes .claude/settings.local.json with hooks:
   - PreToolUse  → captures every tool invocation before execution
@@ -224,7 +224,7 @@ func generateCodexHooks(binary string, ag agent.Info, apiKey ...string) error {
 		configToml += fmt.Sprintf(`
 [otel]
 environment = "dev"
-log_user_prompt = true
+log_user_prompt = false 
 exporter = { otlp-http = {
   endpoint = "https://otel.opscompanion.ai/v1/logs",
   protocol = "binary",
