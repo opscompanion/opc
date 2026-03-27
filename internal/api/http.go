@@ -7,10 +7,23 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 
+	"github.com/opscompanion/opc/internal/config"
 	"github.com/opscompanion/opc/internal/models"
 )
+
+// APIError is returned for non-2xx responses.
+type APIError struct {
+	StatusCode int
+	Body       string
+}
+
+func (e *APIError) Error() string {
+	return fmt.Sprintf("API error %d: %s", e.StatusCode, e.Body)
+}
 
 // HTTPClient talks to the real OpsCompanion API.
 type HTTPClient struct {
@@ -21,16 +34,15 @@ type HTTPClient struct {
 
 func NewHTTPClient(cfg *models.Config) *HTTPClient {
 	return &HTTPClient{
-		baseURL: cfg.APIURL,
+		baseURL: config.ResolveAPIURL(cfg),
 		apiKey:  cfg.APIKey,
 		httpClient: &http.Client{
-			Timeout: 10 * time.Second,
+			Timeout: 15 * time.Second,
 		},
 	}
 }
 
-// do executes an HTTP request with auth headers and returns the response body.
-func (c *HTTPClient) do(ctx context.Context, method, path string, body any) ([]byte, error) {
+func (c *HTTPClient) do(ctx context.Context, method, path string, query url.Values, body any) ([]byte, error) {
 	var reqBody io.Reader
 	if body != nil {
 		data, err := json.Marshal(body)
@@ -40,12 +52,19 @@ func (c *HTTPClient) do(ctx context.Context, method, path string, body any) ([]b
 		reqBody = bytes.NewReader(data)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, method, c.baseURL+path, reqBody)
+	u := c.baseURL + path
+	if len(query) > 0 {
+		u += "?" + query.Encode()
+	}
+
+	req, err := http.NewRequestWithContext(ctx, method, u, reqBody)
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
 	}
 	req.Header.Set("Authorization", "Bearer "+c.apiKey)
-	req.Header.Set("Content-Type", "application/json")
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -59,111 +78,160 @@ func (c *HTTPClient) do(ctx context.Context, method, path string, body any) ([]b
 	}
 
 	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("API error %d: %s", resp.StatusCode, string(respBody))
+		return nil, &APIError{StatusCode: resp.StatusCode, Body: string(respBody)}
 	}
 
 	return respBody, nil
 }
 
-func (c *HTTPClient) Verify() error {
-	_, err := c.do(context.Background(), http.MethodGet, "/verify", nil)
-	return err
-}
-
-func (c *HTTPClient) StartSession(session models.Session) (*models.FullContext, error) {
-	data, err := c.do(context.Background(), http.MethodPost, "/sessions", session)
+func (c *HTTPClient) Verify() (*models.WhoAmIResponse, error) {
+	data, err := c.do(context.Background(), http.MethodGet, "/whoami", nil, nil)
 	if err != nil {
 		return nil, err
 	}
-	var fc models.FullContext
-	if err := json.Unmarshal(data, &fc); err != nil {
+	var resp models.WhoAmIResponse
+	if err := json.Unmarshal(data, &resp); err != nil {
 		return nil, fmt.Errorf("parsing response: %w", err)
 	}
-	return &fc, nil
+	return &resp, nil
 }
 
-func (c *HTTPClient) StopSession(sessionID string) ([]models.Memory, error) {
-	data, err := c.do(context.Background(), http.MethodPost, "/sessions/"+sessionID+"/stop", nil)
+func (c *HTTPClient) GetContext(includeComputedLinks bool) (*models.FullContext, error) {
+	query := url.Values{}
+	if includeComputedLinks {
+		query.Set("includeComputedLinks", "true")
+	}
+	data, err := c.do(context.Background(), http.MethodGet, "/context", query, nil)
 	if err != nil {
 		return nil, err
 	}
-	var memories []models.Memory
-	if err := json.Unmarshal(data, &memories); err != nil {
+
+	type rawUnauthorized = models.UnauthorizedSection
+	type rawMemory struct {
+		Organization json.RawMessage `json:"organization"`
+		User         json.RawMessage `json:"user"`
+	}
+	type rawContext struct {
+		Organization models.OrganizationContext `json:"organization"`
+		User         *models.UserContext        `json:"user"`
+		Integrations json.RawMessage            `json:"integrations"`
+		Workspaces   json.RawMessage            `json:"workspaces"`
+		Memory       rawMemory                  `json:"memory"`
+	}
+
+	var raw rawContext
+	if err := json.Unmarshal(data, &raw); err != nil {
 		return nil, fmt.Errorf("parsing response: %w", err)
 	}
-	return memories, nil
+
+	ctx := &models.FullContext{
+		Organization: raw.Organization,
+		User:         raw.User,
+	}
+
+	if unauthorized, ok := decodeUnauthorized(raw.Integrations); ok {
+		ctx.IntegrationsUnauthorized = unauthorized
+	} else if err := json.Unmarshal(raw.Integrations, &ctx.Integrations); err != nil {
+		return nil, fmt.Errorf("parsing integrations: %w", err)
+	}
+
+	if unauthorized, ok := decodeUnauthorized(raw.Workspaces); ok {
+		ctx.WorkspacesUnauthorized = unauthorized
+	} else if err := json.Unmarshal(raw.Workspaces, &ctx.Workspaces); err != nil {
+		return nil, fmt.Errorf("parsing workspaces: %w", err)
+	}
+
+	if unauthorized, ok := decodeUnauthorized(raw.Memory.Organization); ok {
+		ctx.Memory.Organization.Unauthorized = unauthorized
+	} else if isJSONNull(raw.Memory.Organization) {
+		ctx.Memory.Organization.Content = nil
+	} else {
+		var content string
+		if err := json.Unmarshal(raw.Memory.Organization, &content); err != nil {
+			return nil, fmt.Errorf("parsing organization memory: %w", err)
+		}
+		ctx.Memory.Organization.Content = &content
+	}
+
+	if unauthorized, ok := decodeUnauthorized(raw.Memory.User); ok {
+		ctx.Memory.User.Unauthorized = unauthorized
+	} else if isJSONNull(raw.Memory.User) {
+		ctx.Memory.User.Content = nil
+	} else {
+		var content string
+		if err := json.Unmarshal(raw.Memory.User, &content); err != nil {
+			return nil, fmt.Errorf("parsing user memory: %w", err)
+		}
+		ctx.Memory.User.Content = &content
+	}
+
+	return ctx, nil
 }
 
-func (c *HTTPClient) ResumeSession(sessionID string) (*models.SessionResumeContext, error) {
-	data, err := c.do(context.Background(), http.MethodPost, "/sessions/"+sessionID+"/resume", nil)
+func (c *HTTPClient) SearchKnowledge(req models.KnowledgeSearchRequest) (*models.SearchResult, error) {
+	data, err := c.do(context.Background(), http.MethodPost, "/knowledge/search", nil, req)
 	if err != nil {
 		return nil, err
 	}
-	var rc models.SessionResumeContext
-	if err := json.Unmarshal(data, &rc); err != nil {
+	var resp models.SearchResult
+	if err := json.Unmarshal(data, &resp); err != nil {
 		return nil, fmt.Errorf("parsing response: %w", err)
 	}
-	return &rc, nil
+	return &resp, nil
 }
 
-func (c *HTTPClient) Checkpoint(sessionID string) (*models.Checkpoint, error) {
-	data, err := c.do(context.Background(), http.MethodPost, "/sessions/"+sessionID+"/checkpoint", nil)
+func (c *HTTPClient) SearchMemory(req models.MemorySearchRequest) (*models.SearchResult, error) {
+	data, err := c.do(context.Background(), http.MethodPost, "/memory/search", nil, req)
 	if err != nil {
 		return nil, err
 	}
-	var cp models.Checkpoint
-	if err := json.Unmarshal(data, &cp); err != nil {
+	var resp models.SearchResult
+	if err := json.Unmarshal(data, &resp); err != nil {
 		return nil, fmt.Errorf("parsing response: %w", err)
 	}
-	return &cp, nil
+	return &resp, nil
 }
 
-func (c *HTTPClient) SaveMemory(content string, tags []string) (*models.Memory, error) {
-	payload := map[string]any{"content": content, "tags": tags}
-	data, err := c.do(context.Background(), http.MethodPost, "/memories", payload)
+func (c *HTTPClient) GetKnowledgeByPath(path string) (*models.KnowledgeDocument, error) {
+	data, err := c.do(context.Background(), http.MethodGet, "/knowledge/path/"+escapePath(path), nil, nil)
 	if err != nil {
 		return nil, err
 	}
-	var mem models.Memory
-	if err := json.Unmarshal(data, &mem); err != nil {
+	var resp models.KnowledgeDocument
+	if err := json.Unmarshal(data, &resp); err != nil {
 		return nil, fmt.Errorf("parsing response: %w", err)
 	}
-	return &mem, nil
+	return &resp, nil
 }
 
-func (c *HTTPClient) SearchMemories(query string) (*models.SearchResult, error) {
-	payload := map[string]string{"query": query}
-	data, err := c.do(context.Background(), http.MethodPost, "/memories/search", payload)
+func (c *HTTPClient) PutKnowledgeByPath(path string, req models.KnowledgePathUpsertRequest) (*models.KnowledgeDocument, error) {
+	data, err := c.do(context.Background(), http.MethodPut, "/knowledge/path/"+escapePath(path), nil, req)
 	if err != nil {
 		return nil, err
 	}
-	var sr models.SearchResult
-	if err := json.Unmarshal(data, &sr); err != nil {
+	var resp models.KnowledgeDocument
+	if err := json.Unmarshal(data, &resp); err != nil {
 		return nil, fmt.Errorf("parsing response: %w", err)
 	}
-	return &sr, nil
+	return &resp, nil
 }
 
-func (c *HTTPClient) GetHistory() ([]models.HistoryEntry, error) {
-	data, err := c.do(context.Background(), http.MethodGet, "/history", nil)
-	if err != nil {
-		return nil, err
+func decodeUnauthorized(raw json.RawMessage) (*models.UnauthorizedSection, bool) {
+	var unauthorized models.UnauthorizedSection
+	if err := json.Unmarshal(raw, &unauthorized); err == nil && unauthorized.Unauthorized {
+		return &unauthorized, true
 	}
-	var entries []models.HistoryEntry
-	if err := json.Unmarshal(data, &entries); err != nil {
-		return nil, fmt.Errorf("parsing response: %w", err)
-	}
-	return entries, nil
+	return nil, false
 }
 
-func (c *HTTPClient) GetContext() (*models.FullContext, error) {
-	data, err := c.do(context.Background(), http.MethodGet, "/context", nil)
-	if err != nil {
-		return nil, err
+func isJSONNull(raw json.RawMessage) bool {
+	return strings.TrimSpace(string(raw)) == "null"
+}
+
+func escapePath(path string) string {
+	parts := strings.Split(strings.Trim(path, "/"), "/")
+	for i := range parts {
+		parts[i] = url.PathEscape(parts[i])
 	}
-	var fc models.FullContext
-	if err := json.Unmarshal(data, &fc); err != nil {
-		return nil, fmt.Errorf("parsing response: %w", err)
-	}
-	return &fc, nil
+	return strings.Join(parts, "/")
 }

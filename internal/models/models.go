@@ -1,114 +1,171 @@
 package models
 
-import "time"
-
 // Config holds the CLI configuration.
 type Config struct {
 	APIURL string `json:"api_url"`
 	APIKey string `json:"api_key"`
 }
 
-// Session represents an agent session.
-type Session struct {
-	ID          string    `json:"session_id"`
-	Org         string    `json:"org"`
-	User        string    `json:"user"`
-	Started     time.Time `json:"started"`
-	Ended       time.Time `json:"ended,omitempty"`
-	Repo        string    `json:"repo"`
-	Branch      string    `json:"branch"`
-	RecentFiles []string  `json:"recent_files,omitempty"`
+type PublicIdentity struct {
+	PublicID string `json:"publicId"`
 }
 
-// OrgContext holds org-level configuration.
-type OrgContext struct {
-	Name            string `json:"name"`
-	CloudProvider   string `json:"cloud_provider"`
-	IaC             string `json:"iac"`
-	CICD            string `json:"ci_cd"`
-	Observability   string `json:"observability"`
-	SecretsManager  string `json:"secrets_manager"`
-	IncidentProcess string `json:"incident_process"`
+type APIKeyIdentity struct {
+	PublicID   string   `json:"publicId"`
+	KeyPrefix  string   `json:"keyPrefix"`
+	OwnerType  string   `json:"ownerType"`
+	Scopes     []string `json:"scopes"`
+	ExpiresAt  *string  `json:"expiresAt"`
 }
 
-// TeamContext holds team-level configuration.
-type TeamContext struct {
-	Name              string   `json:"name"`
-	Services          []string `json:"services"`
-	OnCallRotation    string   `json:"on_call_rotation"`
-	DeploymentCadence string   `json:"deployment_cadence"`
-	ActiveProjects    []string `json:"active_projects"`
+type WhoAmIResponse struct {
+	APIKey       APIKeyIdentity  `json:"apiKey"`
+	Organization PublicIdentity  `json:"organization"`
+	User         *PublicIdentity `json:"user"`
 }
 
-// UserContext holds user-level configuration.
+type UnauthorizedSection struct {
+	Unauthorized  bool     `json:"unauthorized"`
+	RequiredScopes []string `json:"requiredScopes"`
+}
+
+type OrganizationContext struct {
+	PublicID string  `json:"publicId"`
+	Name     *string `json:"name"`
+}
+
 type UserContext struct {
-	Name       string   `json:"name"`
-	Role       string   `json:"role"`
-	Prefs      string   `json:"preferences"`
-	RecentWork []string `json:"recent_work"`
-	Editor     string   `json:"editor"`
-	Shell      string   `json:"shell"`
+	PublicID  string  `json:"publicId"`
+	FirstName *string `json:"firstName"`
+	LastName  *string `json:"lastName"`
+	Email     *string `json:"email"`
 }
 
-// EnvContext holds workspace metadata.
-type EnvContext struct {
-	Branch     string `json:"current_branch"`
-	WorkDir    string `json:"working_directory"`
-	LastCommit string `json:"last_commit,omitempty"`
+type Integration struct {
+	PublicID string `json:"publicId"`
+	Provider string `json:"provider"`
+	IsActive bool   `json:"isActive"`
 }
 
-// FullContext is the combined org/team/user/env context.
+type WorkspaceNode struct {
+	PublicID   string  `json:"publicId"`
+	ExternalID string  `json:"externalId"`
+	Provider   string  `json:"provider"`
+	Type       *string `json:"type"`
+	SubType    *string `json:"subType"`
+	X          float64 `json:"x"`
+	Y          float64 `json:"y"`
+}
+
+type WorkspaceLink struct {
+	PublicID      string  `json:"publicId"`
+	NodeAPublicID string  `json:"nodeAPublicId"`
+	NodeBPublicID string  `json:"nodeBPublicId"`
+	LabelAToB     *string `json:"labelAToB"`
+	LabelBToA     *string `json:"labelBToA"`
+	Notes         *string `json:"notes"`
+}
+
+type ComputedLink struct {
+	SourcePublicID      string `json:"sourcePublicId"`
+	TargetPublicID      string `json:"targetPublicId"`
+	Reason              string `json:"reason"`
+	Provider            string `json:"provider"`
+	IntegrationPublicID string `json:"integrationPublicId"`
+}
+
+type Workspace struct {
+	PublicID      string         `json:"publicId"`
+	Name          string         `json:"name"`
+	Color         string         `json:"color"`
+	NodeCount     int            `json:"nodeCount"`
+	Nodes         []WorkspaceNode `json:"nodes"`
+	Links         []WorkspaceLink `json:"links"`
+	ComputedLinks []ComputedLink  `json:"computedLinks"`
+}
+
+type MemorySection struct {
+	Content      *string
+	Unauthorized *UnauthorizedSection
+}
+
+type ContextMemory struct {
+	Organization MemorySection
+	User         MemorySection
+}
+
 type FullContext struct {
-	Org  OrgContext  `json:"org"`
-	Team TeamContext `json:"team"`
-	User UserContext `json:"user"`
-	Env  EnvContext  `json:"workspace"`
+	Organization            OrganizationContext
+	User                    *UserContext
+	Integrations            []Integration
+	IntegrationsUnauthorized *UnauthorizedSection
+	Workspaces              []Workspace
+	WorkspacesUnauthorized  *UnauthorizedSection
+	Memory                  ContextMemory
 }
 
-// Memory represents a stored decision, discovery, or context entry.
-type Memory struct {
-	ID        string   `json:"id"`
-	Type      string   `json:"type"` // Decision, Discovery, Context
-	Content   string   `json:"content"`
-	Tags      []string `json:"tags"`
-	Org       string   `json:"org"`
-	User      string   `json:"user"`
-	CreatedAt string   `json:"created_at"`
-	SessionID string   `json:"session_id,omitempty"`
-	Relevance float64  `json:"relevance,omitempty"`
+type KnowledgeVersion struct {
+	PublicID    string `json:"publicId"`
+	SHA256Hash  string `json:"sha256Hash"`
+	ByteSize    int    `json:"byteSize"`
+	TokenCount  int    `json:"tokenCount"`
+	ContentType string `json:"contentType"`
+	CreatedAt   string `json:"createdAt"`
+	UpdatedAt   string `json:"updatedAt"`
 }
 
-// SearchResult wraps memory search responses.
+type KnowledgeFile struct {
+	PublicID  string  `json:"publicId"`
+	Path      string  `json:"path"`
+	Name      string  `json:"name"`
+	CreatedAt string  `json:"createdAt"`
+	UpdatedAt string  `json:"updatedAt"`
+	DeletedAt *string `json:"deletedAt"`
+}
+
+type KnowledgeDocument struct {
+	File    KnowledgeFile     `json:"file"`
+	Version *KnowledgeVersion `json:"version"`
+	Content string            `json:"content"`
+}
+
+type KnowledgePathUpsertRequest struct {
+	Content       string `json:"content"`
+	ForceSnapshot bool   `json:"forceSnapshot,omitempty"`
+}
+
+type KnowledgeSearchRequest struct {
+	Scope          string `json:"scope,omitempty"`
+	Mode           string `json:"mode,omitempty"`
+	Query          string `json:"query"`
+	Limit          int    `json:"limit,omitempty"`
+	CaseSensitive  bool   `json:"caseSensitive,omitempty"`
+	IncludeContent bool   `json:"includeContent,omitempty"`
+}
+
+type MemorySearchRequest struct {
+	Mode           string `json:"mode,omitempty"`
+	Query          string `json:"query"`
+	Limit          int    `json:"limit,omitempty"`
+	CaseSensitive  bool   `json:"caseSensitive,omitempty"`
+	IncludeContent bool   `json:"includeContent,omitempty"`
+}
+
+type SearchResultItem struct {
+	SourceType         string  `json:"sourceType"`
+	Scope              string  `json:"scope"`
+	FilePublicID       string  `json:"filePublicId"`
+	VersionPublicID    string  `json:"versionPublicId"`
+	Path               string  `json:"path"`
+	Name               string  `json:"name"`
+	Date               *string `json:"date"`
+	MatchCount         int     `json:"matchCount"`
+	Snippet            string  `json:"snippet"`
+	Content            string  `json:"content"`
+	SourceUserPublicID *string `json:"sourceUserPublicId"`
+}
+
 type SearchResult struct {
-	Results      []Memory `json:"results"`
-	TotalMatches int      `json:"total_matches"`
-	QueryTimeMS  int      `json:"query_time_ms"`
-}
-
-// HistoryEntry represents a significant session event.
-type HistoryEntry struct {
-	SessionID string         `json:"session_id"`
-	Agent     string         `json:"agent"`
-	Summary   string         `json:"summary"`
-	Trigger   string         `json:"trigger"` // git_commit, file_change, session_stop, etc.
-	Detail    map[string]any `json:"detail,omitempty"`
-	Decisions []string       `json:"decisions,omitempty"`
-}
-
-// Checkpoint represents a session checkpoint (API response).
-type Checkpoint struct {
-	SessionID     string   `json:"session_id"`
-	Compressed    string   `json:"compressed_summary"`
-	Decisions     []string `json:"decisions"`
-	FilesModified []string `json:"files_modified"`
-}
-
-// SessionResumeContext is returned when resuming a session.
-type SessionResumeContext struct {
-	LastActive    string   `json:"last_active"`
-	WorkingOn     string   `json:"working_on"`
-	Branch        string   `json:"branch"`
-	ModifiedFiles []string `json:"modified_files"`
-	Decisions     []string `json:"decisions"`
-	OpenThreads   []string `json:"open_threads"`
+	Truncated bool               `json:"truncated"`
+	Results   []SearchResultItem `json:"results"`
 }
