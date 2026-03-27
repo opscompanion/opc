@@ -223,8 +223,8 @@ func generateCodexHooks(binary string, ag agent.Info, apiKey ...string) error {
 	if key != "" && key != "mock-key" {
 		configToml += fmt.Sprintf(`
 [otel]
-environment = "prod"
-log_user_prompt = false
+environment = "dev"
+log_user_prompt = true
 exporter = { otlp-http = {
   endpoint = "https://otel.opscompanion.ai/v1/logs",
   protocol = "binary",
