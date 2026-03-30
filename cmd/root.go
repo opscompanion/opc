@@ -6,11 +6,12 @@ import (
 	"strings"
 
 	"github.com/opscompanion/opc/internal/agent"
+	"github.com/opscompanion/opc/internal/config"
 	"github.com/opscompanion/opc/internal/update"
 	"github.com/spf13/cobra"
 )
 
-var cfgFile string
+var profileFlag string
 var agentFlag string
 
 // ActiveAgent is the resolved agent info, available to all commands after PersistentPreRun.
@@ -25,6 +26,8 @@ var rootCmd = &cobra.Command{
 	Long: `opc is a CLI companion for platform engineers. It provides persistent
 context, knowledge, memory, and local capture tooling for agent-assisted workflows.`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		config.SetProfile(profileFlag)
+
 		if err := agent.Validate(agentFlag); err != nil {
 			return err
 		}
@@ -70,7 +73,7 @@ func Execute() {
 
 func init() {
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is ~/.config/opscompanion/config.json)")
+	rootCmd.PersistentFlags().StringVar(&profileFlag, "profile", "", "config profile to use (default: auto-resolved)")
 	rootCmd.PersistentFlags().StringVar(&agentFlag, "agent", "auto",
 		fmt.Sprintf("agent runtime (%s)", strings.Join(agent.Supported(), ", ")))
 }

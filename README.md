@@ -30,7 +30,7 @@ Requires Go 1.25+.
 ## Quick start
 
 ```bash
-# 1. Configure your API key
+# 1. Configure your API key (writes to the default profile)
 opc init
 
 # 2. Install for your agent (skills, hooks, plugin registration)
@@ -46,6 +46,57 @@ opc search "redis connection"
 # 5. View org/user/workspace context
 opc context
 ```
+
+## Profiles
+
+OPC supports named profiles for working across multiple orgs or environments. Configuration lives in `~/.config/opscompanion/config.toml`.
+
+### Config file format
+
+```toml
+[default]
+api_url = "https://api.opscompanion.ai/v1"
+api_key = "opc-xxx..."
+
+[profile.acme-corp]
+api_url = "https://acme.opscompanion.ai/v1"
+api_key = "opc-yyy..."
+paths = ["~/code/acme-*"]
+
+[profile.personal]
+api_key = "opc-zzz..."
+paths = ["~/projects/personal"]
+```
+
+Named profiles inherit `api_url` from `[default]` when not specified.
+
+### Setting up profiles
+
+```bash
+# Configure the default profile
+opc init
+
+# Configure a named profile (auto-links the current directory)
+cd ~/code/acme-frontend
+opc init --profile acme-corp
+```
+
+### Profile resolution
+
+OPC resolves which profile to use in this order:
+
+1. **`--profile` flag** — `opc --profile acme-corp search "query"`
+2. **`OPC_PROFILE` env var** — `export OPC_PROFILE=acme-corp`
+3. **`.opscompanion` dotfile** — a file in the repo or any parent directory:
+   ```
+   profile = acme-corp
+   ```
+4. **Path glob matching** — matches `cwd` against each profile's `paths` array
+5. **`[default]`** — fallback when no profile matches
+
+### Migration from config.json
+
+Existing `config.json` files are automatically migrated to `config.toml` on first use. The original file is preserved as `config.json.bak`.
 
 ## The `--agent` flag
 
@@ -84,7 +135,7 @@ Shared knowledge and memory are available via `opc search`. No MCP required — 
 
 | Command | Description |
 |---------|-------------|
-| `opc init` | Configure API key |
+| `opc init` | Configure API key and profile (`--profile <name>` for named profiles) |
 | `opc install` | Install skills, hooks, and plugins for an agent (`--agent` required) |
 | `opc hooks` | Generate hook configuration for the active agent |
 | `opc context` | Display org, user, integration, and workspace context |
@@ -95,7 +146,7 @@ Shared knowledge and memory are available via `opc search`. No MCP required — 
 | `opc capture` | Capture hook events from stdin (used by hooks) |
 | `opc version` | Print version info |
 
-All commands accept the global `--agent` flag.
+All commands accept the global `--agent` and `--profile` flags.
 
 ## Architecture
 
