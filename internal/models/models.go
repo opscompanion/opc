@@ -1,5 +1,7 @@
 package models
 
+import "encoding/json"
+
 // Config holds the CLI configuration.
 type Config struct {
 	APIURL string `json:"api_url"`
@@ -11,11 +13,11 @@ type PublicIdentity struct {
 }
 
 type APIKeyIdentity struct {
-	PublicID   string   `json:"publicId"`
-	KeyPrefix  string   `json:"keyPrefix"`
-	OwnerType  string   `json:"ownerType"`
-	Scopes     []string `json:"scopes"`
-	ExpiresAt  *string  `json:"expiresAt"`
+	PublicID  string   `json:"publicId"`
+	KeyPrefix string   `json:"keyPrefix"`
+	OwnerType string   `json:"ownerType"`
+	Scopes    []string `json:"scopes"`
+	ExpiresAt *string  `json:"expiresAt"`
 }
 
 type WhoAmIResponse struct {
@@ -25,7 +27,7 @@ type WhoAmIResponse struct {
 }
 
 type UnauthorizedSection struct {
-	Unauthorized  bool     `json:"unauthorized"`
+	Unauthorized   bool     `json:"unauthorized"`
 	RequiredScopes []string `json:"requiredScopes"`
 }
 
@@ -75,10 +77,10 @@ type ComputedLink struct {
 }
 
 type Workspace struct {
-	PublicID      string         `json:"publicId"`
-	Name          string         `json:"name"`
-	Color         string         `json:"color"`
-	NodeCount     int            `json:"nodeCount"`
+	PublicID      string          `json:"publicId"`
+	Name          string          `json:"name"`
+	Color         string          `json:"color"`
+	NodeCount     int             `json:"nodeCount"`
 	Nodes         []WorkspaceNode `json:"nodes"`
 	Links         []WorkspaceLink `json:"links"`
 	ComputedLinks []ComputedLink  `json:"computedLinks"`
@@ -95,13 +97,13 @@ type ContextMemory struct {
 }
 
 type FullContext struct {
-	Organization            OrganizationContext
-	User                    *UserContext
-	Integrations            []Integration
+	Organization             OrganizationContext
+	User                     *UserContext
+	Integrations             []Integration
 	IntegrationsUnauthorized *UnauthorizedSection
-	Workspaces              []Workspace
-	WorkspacesUnauthorized  *UnauthorizedSection
-	Memory                  ContextMemory
+	Workspaces               []Workspace
+	WorkspacesUnauthorized   *UnauthorizedSection
+	Memory                   ContextMemory
 }
 
 type KnowledgeVersion struct {
@@ -168,4 +170,67 @@ type SearchResultItem struct {
 type SearchResult struct {
 	Truncated bool               `json:"truncated"`
 	Results   []SearchResultItem `json:"results"`
+}
+
+type ObservabilitySearchRequest struct {
+	TimeRange     string   `json:"timeRange,omitempty"`
+	Mode          string   `json:"mode,omitempty"`
+	Query         string   `json:"query,omitempty"`
+	CaseSensitive bool     `json:"caseSensitive,omitempty"`
+	Services      []string `json:"services,omitempty"`
+	Limit         int      `json:"limit,omitempty"`
+	Cursor        string   `json:"cursor,omitempty"`
+	Severities    []string `json:"severities,omitempty"`
+}
+
+type LogEntry struct {
+	Timestamp          json.RawMessage `json:"timestamp"`
+	TraceID            string          `json:"trace_id"`
+	SpanID             string          `json:"span_id"`
+	SeverityNumber     int             `json:"severity_number"`
+	SeverityText       string          `json:"severity_text"`
+	Body               string          `json:"body"`
+	ServiceName        string          `json:"service_name"`
+	ResourceAttributes json.RawMessage `json:"resource_attributes"`
+	LogAttributes      json.RawMessage `json:"log_attributes"`
+	TenantID           string          `json:"tenant_id"`
+	APIKeyType         *string         `json:"api_key_type"`
+	APIKeyID           *string         `json:"api_key_id"`
+	UserID             *string         `json:"user_id"`
+}
+
+type LogsResult struct {
+	Data       []LogEntry `json:"data"`
+	NextCursor *string    `json:"nextCursor"`
+	HasMore    bool       `json:"hasMore"`
+}
+
+type TraceEntry struct {
+	Timestamp          json.RawMessage `json:"timestamp"`
+	TraceID            string          `json:"trace_id"`
+	SpanID             string          `json:"span_id"`
+	ParentSpanID       string          `json:"parent_span_id"`
+	TraceState         string          `json:"trace_state"`
+	SpanName           string          `json:"span_name"`
+	SpanKind           int             `json:"span_kind"`
+	ServiceName        string          `json:"service_name"`
+	ResourceAttributes json.RawMessage `json:"resource_attributes"`
+	ScopeName          string          `json:"scope_name"`
+	ScopeVersion       string          `json:"scope_version"`
+	SpanAttributes     json.RawMessage `json:"span_attributes"`
+	Duration           float64         `json:"duration"`
+	StatusCode         int             `json:"status_code"`
+	StatusMessage      string          `json:"status_message"`
+	Events             json.RawMessage `json:"events"`
+	Links              json.RawMessage `json:"links"`
+	TenantID           string          `json:"tenant_id"`
+	APIKeyType         *string         `json:"api_key_type"`
+	APIKeyID           *string         `json:"api_key_id"`
+	UserID             *string         `json:"user_id"`
+}
+
+type TracesResult struct {
+	Data       []TraceEntry `json:"data"`
+	NextCursor *string      `json:"nextCursor"`
+	HasMore    bool         `json:"hasMore"`
 }
