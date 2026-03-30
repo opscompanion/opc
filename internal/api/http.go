@@ -192,6 +192,42 @@ func (c *HTTPClient) SearchMemory(req models.MemorySearchRequest) (*models.Searc
 	return &resp, nil
 }
 
+func (c *HTTPClient) SearchLogs(req models.ObservabilitySearchRequest) (*models.LogsResult, error) {
+	data, err := c.do(context.Background(), http.MethodPost, "/logs/search", nil, req)
+	if err != nil {
+		return nil, err
+	}
+	var resp models.LogsResult
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return nil, fmt.Errorf("parsing response: %w", err)
+	}
+	return &resp, nil
+}
+
+func (c *HTTPClient) TailLogs(req models.ObservabilitySearchRequest) (*models.LogsResult, error) {
+	data, err := c.do(context.Background(), http.MethodPost, "/logs/tail", nil, req)
+	if err != nil {
+		return nil, err
+	}
+	var resp models.LogsResult
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return nil, fmt.Errorf("parsing response: %w", err)
+	}
+	return &resp, nil
+}
+
+func (c *HTTPClient) SearchTraces(req models.ObservabilitySearchRequest) (*models.TracesResult, error) {
+	data, err := c.do(context.Background(), http.MethodPost, "/traces/search", nil, req)
+	if err != nil {
+		return nil, err
+	}
+	var resp models.TracesResult
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return nil, fmt.Errorf("parsing response: %w", err)
+	}
+	return &resp, nil
+}
+
 func (c *HTTPClient) GetKnowledgeByPath(path string) (*models.KnowledgeDocument, error) {
 	data, err := c.do(context.Background(), http.MethodGet, "/knowledge/path/"+escapePath(path), nil, nil)
 	if err != nil {

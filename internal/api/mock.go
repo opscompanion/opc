@@ -136,6 +136,50 @@ func (m *MockClient) SearchMemory(req models.MemorySearchRequest) (*models.Searc
 	}, nil
 }
 
+func (m *MockClient) SearchLogs(req models.ObservabilitySearchRequest) (*models.LogsResult, error) {
+	return &models.LogsResult{
+		Data: []models.LogEntry{
+			{
+				Timestamp:      []byte(`"2026-03-30T12:34:56Z"`),
+				TraceID:        "trace_mock_1234567890",
+				SpanID:         "span_mock_1234",
+				SeverityNumber: 17,
+				SeverityText:   maxString(firstString(req.Severities), "INFO"),
+				Body:           fmt.Sprintf("Mock log hit for %q", req.Query),
+				ServiceName:    maxString(firstString(req.Services), "mock-service"),
+				TenantID:       "tenant_mock",
+			},
+		},
+		HasMore: false,
+	}, nil
+}
+
+func (m *MockClient) TailLogs(req models.ObservabilitySearchRequest) (*models.LogsResult, error) {
+	resp, _ := m.SearchLogs(req)
+	next := "mock-cursor"
+	resp.NextCursor = &next
+	return resp, nil
+}
+
+func (m *MockClient) SearchTraces(req models.ObservabilitySearchRequest) (*models.TracesResult, error) {
+	return &models.TracesResult{
+		Data: []models.TraceEntry{
+			{
+				Timestamp:    []byte(`"2026-03-30T12:34:56Z"`),
+				TraceID:      "trace_mock_1234567890",
+				SpanID:       "span_mock_1234",
+				ParentSpanID: "parent_mock_5678",
+				SpanName:     fmt.Sprintf("Mock trace for %q", req.Query),
+				ServiceName:  maxString(firstString(req.Services), "mock-service"),
+				Duration:     1250,
+				StatusCode:   1,
+				TenantID:     "tenant_mock",
+			},
+		},
+		HasMore: false,
+	}, nil
+}
+
 func (m *MockClient) GetKnowledgeByPath(path string) (*models.KnowledgeDocument, error) {
 	if strings.Contains(path, "missing") {
 		return nil, &APIError{StatusCode: 404, Body: `{"error":"not found"}`}
@@ -191,6 +235,13 @@ func maxString(v, fallback string) string {
 		return fallback
 	}
 	return v
+}
+
+func firstString(values []string) string {
+	if len(values) == 0 {
+		return ""
+	}
+	return values[0]
 }
 
 func pathDir(path string) string {

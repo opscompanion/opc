@@ -12,6 +12,9 @@ type Client interface {
 	GetContext(includeComputedLinks bool) (*models.FullContext, error)
 	SearchKnowledge(req models.KnowledgeSearchRequest) (*models.SearchResult, error)
 	SearchMemory(req models.MemorySearchRequest) (*models.SearchResult, error)
+	SearchLogs(req models.ObservabilitySearchRequest) (*models.LogsResult, error)
+	TailLogs(req models.ObservabilitySearchRequest) (*models.LogsResult, error)
+	SearchTraces(req models.ObservabilitySearchRequest) (*models.TracesResult, error)
 	GetKnowledgeByPath(path string) (*models.KnowledgeDocument, error)
 	PutKnowledgeByPath(path string, req models.KnowledgePathUpsertRequest) (*models.KnowledgeDocument, error)
 }

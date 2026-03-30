@@ -43,7 +43,11 @@ opc remember "Use connection pooling for Redis — single connections hit latenc
 # 4. Search knowledge and memory
 opc search "redis connection"
 
-# 5. View org/user/workspace context
+# 5. Search logs and traces
+opc logs "timeout" --service api --severity ERROR --since 1h
+opc traces "checkout" --service api --since 6h
+
+# 6. View org/user/workspace context
 opc context
 ```
 
@@ -92,6 +96,8 @@ Shared knowledge and memory are available via `opc search`. No MCP required — 
 | `opc session inspect <id>` | Inspect session events and checkpoints |
 | `opc remember <text>` | Save a decision or discovery (`--tags` to add tags) |
 | `opc search <query>` | Search stored knowledge and memory |
+| `opc logs [query]` | Search logs (`opc logs tail` for live polling; tail does not accept `--since`) |
+| `opc traces [query]` | Search traces |
 | `opc capture` | Capture hook events from stdin (used by hooks) |
 | `opc version` | Print version info |
 
