@@ -14,7 +14,12 @@ import (
 )
 
 const (
-	skillsRepo = "https://github.com/opscompanion/opscompanion-skills.git"
+	skillsRepo   = "https://github.com/opscompanion/opscompanion-skills.git"
+	codexOPCRule = `prefix_rule(
+  pattern = ["opc"],
+  decision = "allow",
+  justification = "Allow OpsCompanion CLI usage outside the sandbox",
+)`
 )
 
 var installCmd = &cobra.Command{
@@ -190,6 +195,11 @@ func installCodex(installDir string) error {
 		}
 	}
 
+	rulesPath, added, err := ensureCodexOPCRule(home)
+	if err != nil {
+		return err
+	}
+
 	fmt.Println()
 	fmt.Println("  Installed for Codex.")
 	fmt.Println()
@@ -198,7 +208,45 @@ func installCodex(installDir string) error {
 	fmt.Println("    $opscompanion-context    Load org/team/user context")
 	fmt.Println("    $opscompanion-search     Search team memories")
 	fmt.Println("    $opscompanion-remember   Save a decision")
+	if added {
+		fmt.Printf("  Rules: added opc prefix rule to %s\n", rulesPath)
+	} else {
+		fmt.Printf("  Rules: opc prefix rule already present in %s\n", rulesPath)
+	}
 	return nil
+}
+
+func ensureCodexOPCRule(home string) (path string, added bool, err error) {
+	rulesDir := filepath.Join(home, ".codex", "rules")
+	if err := os.MkdirAll(rulesDir, 0755); err != nil {
+		return "", false, fmt.Errorf("creating codex rules directory: %w", err)
+	}
+
+	path = filepath.Join(rulesDir, "default.rules")
+	data, err := os.ReadFile(path)
+	if err != nil && !os.IsNotExist(err) {
+		return "", false, fmt.Errorf("reading codex rules: %w", err)
+	}
+	if strings.Contains(string(data), codexOPCRule) {
+		return path, false, nil
+	}
+
+	toWrite := appendCodexRule(data)
+	if err := os.WriteFile(path, []byte(toWrite), 0644); err != nil {
+		return "", false, fmt.Errorf("writing codex rules: %w", err)
+	}
+	return path, true, nil
+}
+
+func appendCodexRule(existing []byte) string {
+	content := string(existing)
+	if content == "" {
+		return codexOPCRule + "\n"
+	}
+	if !strings.HasSuffix(content, "\n") {
+		content += "\n"
+	}
+	return content + codexOPCRule + "\n"
 }
 
 // isGitRepo checks if the directory is a git repository.

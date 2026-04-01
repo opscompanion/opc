@@ -4,7 +4,7 @@
       {
         "hooks": [
           {
-            "command": "/opt/homebrew/bin/opc --agent codex capture --hook-type PostToolUse",
+            "command": "/Users/elifront/go/bin/opc --agent codex capture --hook-type PostToolUse",
             "type": "command"
           }
         ]
@@ -14,7 +14,7 @@
       {
         "hooks": [
           {
-            "command": "/opt/homebrew/bin/opc --agent codex capture --hook-type PreToolUse",
+            "command": "/Users/elifront/go/bin/opc --agent codex capture --hook-type PreToolUse",
             "type": "command"
           }
         ]
@@ -24,7 +24,7 @@
       {
         "hooks": [
           {
-            "command": "/opt/homebrew/bin/opc --agent codex capture --hook-type SessionStart",
+            "command": "/Users/elifront/go/bin/opc --agent codex capture --hook-type SessionStart",
             "type": "command"
           }
         ]
@@ -34,7 +34,7 @@
       {
         "hooks": [
           {
-            "command": "/opt/homebrew/bin/opc --agent codex capture --hook-type UserPromptSubmit",
+            "command": "/Users/elifront/go/bin/opc --agent codex capture --hook-type UserPromptSubmit",
             "type": "command"
           }
         ]
