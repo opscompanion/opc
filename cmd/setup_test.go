@@ -67,6 +67,16 @@ func TestSetupFlowShowsCodexConfirmForRepoSelection(t *testing.T) {
 	}
 }
 
+func TestSetupExistingConfigShowsOnlyKeepAndOverwrite(t *testing.T) {
+	model := newSetupModel(&models.Config{APIKey: "existing", APIURL: "https://api.opscompanion.ai/v1"}, "", agent.Info{}, "", false, packageRunner{})
+	if len(model.selectPrompt.Options) != 2 {
+		t.Fatalf("options len = %d", len(model.selectPrompt.Options))
+	}
+	if model.selectPrompt.Options[0].Title != "Keep existing" || model.selectPrompt.Options[1].Title != "Overwrite" {
+		t.Fatalf("options = %#v", model.selectPrompt.Options)
+	}
+}
+
 func TestSetupSecureSecretStartsVerification(t *testing.T) {
 	model := newSetupModel(nil, "", agent.Info{}, "", false, packageRunner{})
 	model.beginAPIKeyPrompt()

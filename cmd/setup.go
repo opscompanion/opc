@@ -109,9 +109,8 @@ func newSetupModel(existing *models.Config, apiURLOverride string, detected agen
 			Label:   "config",
 			Message: "How should I handle the existing config?",
 			Options: []tui.SelectOption{
-				{Title: "Keep existing", Description: "Reuse the current API key and URL", Value: string(configModeKeep)},
-				{Title: "Update existing", Description: "Keep current values unless you change them", Value: string(configModeUpdate)},
-				{Title: "Overwrite", Description: "Replace the saved API key and URL", Value: string(configModeOverwrite)},
+				{Title: "Keep existing", Description: "Reuse the saved config", Value: string(configModeKeep)},
+				{Title: "Overwrite", Description: "Replace the saved config", Value: string(configModeOverwrite)},
 			},
 		}
 		return model
