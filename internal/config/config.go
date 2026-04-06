@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	configDir  = ".config/opscompanion"
-	configFile = "config.json"
+	configDir     = ".config/opscompanion"
+	configFile    = "config.json"
 	DefaultAPIURL = "https://api.opscompanion.ai/v1"
 )
 
@@ -71,6 +71,19 @@ func Save(cfg *models.Config) error {
 	return nil
 }
 
+// Delete removes the saved config file. It is not an error if the config
+// file does not exist.
+func Delete() (string, error) {
+	p, err := Path()
+	if err != nil {
+		return "", err
+	}
+	if err := os.Remove(p); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return p, fmt.Errorf("removing config: %w", err)
+	}
+	return p, nil
+}
+
 // IsMock returns true if mock mode is active.
 func IsMock(cfg *models.Config) bool {
 	if cfg == nil {
@@ -98,7 +111,7 @@ func RequireConfig() (*models.Config, error) {
 		return nil, err
 	}
 	if cfg == nil {
-		return nil, fmt.Errorf("opc is not configured — run `opc init` first")
+		return nil, fmt.Errorf("opc is not configured — run `opc setup` or `opc init` first")
 	}
 	return cfg, nil
 }

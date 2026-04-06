@@ -30,26 +30,24 @@ Requires Go 1.25+.
 ## Quick start
 
 ```bash
-# 1. Configure your API key
-opc init
+# 1. Run the guided setup flow
+opc setup
 
-# 2. Install for your agent (skills, hooks, plugin registration)
-opc install --agent claude
-opc install --agent codex
-
-# 3. Save a decision to organization knowledge
+# 2. Save a decision to organization knowledge
 opc remember "Use connection pooling for Redis — single connections hit latency issues under load" --tags redis,performance
 
-# 4. Search knowledge and memory
+# 3. Search knowledge and memory
 opc search "redis connection"
 
-# 5. Search logs and traces
+# 4. Search logs and traces
 opc logs "timeout" --service api --severity ERROR --since 1h
 opc traces "checkout" --service api --since 6h
 
-# 6. View org/user/workspace context
+# 5. View org/user/workspace context
 opc context
 ```
+
+`opc setup` combines API configuration, agent selection, skills/plugins, and hook generation in one interactive flow.
 
 ## The `--agent` flag
 
@@ -88,8 +86,9 @@ Shared knowledge and memory are available via `opc search`. No MCP required — 
 
 | Command | Description |
 |---------|-------------|
-| `opc init` | Configure API key |
-| `opc install` | Install skills, hooks, and plugins for an agent (`--agent` required) |
+| `opc setup` | Guided onboarding flow for config, agent install, and hooks |
+| `opc init` | Configure API key directly |
+| `opc install` | Install skills, hooks, and plugins for an agent (interactive if `--agent` is omitted) |
 | `opc hooks` | Generate hook configuration for the active agent |
 | `opc context` | Display org, user, integration, and workspace context |
 | `opc session list` | List local sessions |
@@ -136,8 +135,8 @@ An hour-long session might produce 500 events but only 3–5 memories.
 
 | Agent | Integration | Status |
 |-------|-------------|--------|
-| Claude Code | `opc install --agent claude` | Supported |
-| Codex | `opc install --agent codex` | Supported |
+| Claude Code | `opc setup` or `opc install --agent claude` | Supported |
+| Codex | `opc setup` or `opc install --agent codex` | Supported |
 | Cursor | `opc install --agent cursor` | Planned |
 | OpenClaw | `opc install --agent openclaw` | Planned |
 

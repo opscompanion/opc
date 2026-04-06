@@ -48,9 +48,11 @@ func runHooks(cmd *cobra.Command, args []string) error {
 
 	switch ag.HookFormat {
 	case "claude-hooks":
-		return generateClaudeHooks(binary, ag)
+		_, _, err := generateClaudeHooks(binary, ag)
+		return err
 	case "codex-hooks":
-		return generateCodexHooks(binary, ag)
+		_, _, err := generateCodexHooks(binary, ag)
+		return err
 	default:
 		return generateGenericHooks(binary, ag)
 	}
@@ -60,7 +62,11 @@ func agentFlagArg(ag agent.Info) string {
 	return " --agent " + string(ag.Name)
 }
 
-func generateClaudeHooks(binary string, ag agent.Info, apiKey ...string) error {
+func generateClaudeHooks(binary string, ag agent.Info, apiKey ...string) (string, string, error) {
+	return writeClaudeHooks(binary, ag, false, apiKey...)
+}
+
+func writeClaudeHooks(binary string, ag agent.Info, quiet bool, apiKey ...string) (string, string, error) {
 	af := agentFlagArg(ag)
 	settings := map[string]interface{}{
 		"hooks": map[string]interface{}{
@@ -112,37 +118,43 @@ func generateClaudeHooks(binary string, ag agent.Info, apiKey ...string) error {
 
 	data, err := json.MarshalIndent(settings, "", "  ")
 	if err != nil {
-		return err
+		return "", "", err
 	}
 
 	if hooksDryRun {
 		fmt.Println(string(data))
-		return nil
+		return "", "", nil
 	}
 
 	claudeDir := filepath.Join(".", ".claude")
 	if err := os.MkdirAll(claudeDir, 0755); err != nil {
-		return fmt.Errorf("creating .claude directory: %w", err)
+		return "", "", fmt.Errorf("creating .claude directory: %w", err)
 	}
 
 	settingsPath := filepath.Join(claudeDir, "settings.local.json")
 	if err := os.WriteFile(settingsPath, data, 0644); err != nil {
-		return fmt.Errorf("writing settings: %w", err)
+		return "", "", fmt.Errorf("writing settings: %w", err)
 	}
 
-	fmt.Printf("  Hooks written to %s\n\n", settingsPath)
-	fmt.Println("  Claude Code will now:")
-	fmt.Println("    - SessionStart     → load org context + git state")
-	fmt.Println("    - UserPromptSubmit → evaluate skill activation")
-	fmt.Println("    - PreToolUse       → log before each tool runs")
-	fmt.Println("    - PostToolUse      → log after each tool completes")
-	if key != "" && key != "mock-key" {
-		fmt.Println("    - OTEL         → export logs to OpsCompanion")
+	if !quiet {
+		fmt.Printf("  Hooks written to %s\n\n", settingsPath)
+		fmt.Println("  Claude Code will now:")
+		fmt.Println("    - SessionStart     → load org context + git state")
+		fmt.Println("    - UserPromptSubmit → evaluate skill activation")
+		fmt.Println("    - PreToolUse       → log before each tool runs")
+		fmt.Println("    - PostToolUse      → log after each tool completes")
+		if key != "" && key != "mock-key" {
+			fmt.Println("    - OTEL         → export logs to OpsCompanion")
+		}
 	}
-	return nil
+	return settingsPath, "", nil
 }
 
-func generateCodexHooks(binary string, ag agent.Info, apiKey ...string) error {
+func generateCodexHooks(binary string, ag agent.Info, apiKey ...string) (string, string, error) {
+	return writeCodexHooks(binary, ag, false, apiKey...)
+}
+
+func writeCodexHooks(binary string, ag agent.Info, quiet bool, apiKey ...string) (string, string, error) {
 	af := agentFlagArg(ag)
 
 	hooks := map[string]interface{}{
@@ -180,25 +192,27 @@ func generateCodexHooks(binary string, ag agent.Info, apiKey ...string) error {
 
 	data, err := json.MarshalIndent(hooks, "", "  ")
 	if err != nil {
-		return err
+		return "", "", err
 	}
 
 	if hooksDryRun {
 		fmt.Println(string(data))
-		return nil
+		return "", "", nil
 	}
 
 	codexDir := filepath.Join(".", ".codex")
 	if err := os.MkdirAll(codexDir, 0755); err != nil {
-		return fmt.Errorf("creating .codex directory: %w", err)
+		return "", "", fmt.Errorf("creating .codex directory: %w", err)
 	}
 
 	hooksPath := filepath.Join(codexDir, "hooks.json")
 	if err := os.WriteFile(hooksPath, data, 0644); err != nil {
-		return fmt.Errorf("writing hooks: %w", err)
+		return "", "", fmt.Errorf("writing hooks: %w", err)
 	}
 
-	fmt.Printf("  Hooks written to %s\n", hooksPath)
+	if !quiet {
+		fmt.Printf("  Hooks written to %s\n", hooksPath)
+	}
 
 	// Write config to ~/.codex/config.toml
 	key := ""
@@ -208,11 +222,11 @@ func generateCodexHooks(binary string, ag agent.Info, apiKey ...string) error {
 
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return fmt.Errorf("cannot determine home directory: %w", err)
+		return "", "", fmt.Errorf("cannot determine home directory: %w", err)
 	}
 	codexHome := filepath.Join(home, ".codex")
 	if err := os.MkdirAll(codexHome, 0755); err != nil {
-		return fmt.Errorf("creating ~/.codex directory: %w", err)
+		return "", "", fmt.Errorf("creating ~/.codex directory: %w", err)
 	}
 
 	configPath := filepath.Join(codexHome, "config.toml")
@@ -234,22 +248,35 @@ exporter = { otlp-http = {
 	}
 
 	if err := os.WriteFile(configPath, []byte(configToml), 0600); err != nil {
-		return fmt.Errorf("writing config.toml: %w", err)
+		return "", "", fmt.Errorf("writing config.toml: %w", err)
 	}
-	fmt.Printf("  Config written to %s\n", configPath)
+	if !quiet {
+		fmt.Printf("  Config written to %s\n", configPath)
 
-	fmt.Println()
-	fmt.Println("  Codex will now:")
-	fmt.Println("    - PreToolUse   → log before each tool runs")
-	fmt.Println("    - PostToolUse  → log after each tool completes")
-	if key != "" && key != "mock-key" {
-		fmt.Println("    - OTEL         → export logs to OpsCompanion")
+		fmt.Println()
+		fmt.Println("  Codex will now:")
+		fmt.Println("    - PreToolUse   → log before each tool runs")
+		fmt.Println("    - PostToolUse  → log after each tool completes")
+		if key != "" && key != "mock-key" {
+			fmt.Println("    - OTEL         → export logs to OpsCompanion")
+		}
 	}
-	return nil
+	return hooksPath, configPath, nil
 }
 
 func generateGenericHooks(binary string, ag agent.Info) error {
+	return generateGenericHooksWithMode(binary, ag, false)
+}
+
+func generateGenericHooksQuiet(binary string, ag agent.Info) error {
+	return generateGenericHooksWithMode(binary, ag, true)
+}
+
+func generateGenericHooksWithMode(binary string, ag agent.Info, quiet bool) error {
 	af := agentFlagArg(ag)
+	if quiet {
+		return nil
+	}
 	fmt.Printf("# opc hook commands for agent: %s\n", ag.Name)
 	fmt.Printf("# Add these to your agent's hook/plugin configuration:\n\n")
 	fmt.Printf("# Governance\n")
