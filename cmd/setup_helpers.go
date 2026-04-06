@@ -68,6 +68,11 @@ type agentInstallResult struct {
 	RepoSkillsCmd   string
 }
 
+type apiKeyVerificationResult struct {
+	APIURL string
+	WhoAmI *models.WhoAmIResponse
+}
+
 func isInteractiveSession() bool {
 	return term.IsTerminal(int(os.Stdin.Fd())) && term.IsTerminal(int(os.Stdout.Fd()))
 }
@@ -118,23 +123,35 @@ func ensureInstallConfig() (*models.Config, string, error) {
 	return cfg, p, nil
 }
 
-func resolveSetupAPIURL(input string, existing *models.Config) string {
+func setupAPIURLCandidates(input string) []string {
+	seen := map[string]bool{}
+	add := func(url string, urls *[]string) {
+		url = strings.TrimRight(strings.TrimSpace(url), "/")
+		if url == "" || seen[url] {
+			return
+		}
+		seen[url] = true
+		*urls = append(*urls, url)
+	}
+
+	candidates := make([]string, 0, 3)
 	if strings.TrimSpace(input) != "" {
-		return strings.TrimRight(strings.TrimSpace(input), "/")
+		add(input, &candidates)
+		return candidates
 	}
-	if envURL := strings.TrimSpace(os.Getenv("OPSCOMPANION_API_URL")); envURL != "" {
-		return strings.TrimRight(envURL, "/")
-	}
-	if existing != nil && strings.TrimSpace(existing.APIURL) != "" {
-		return strings.TrimRight(strings.TrimSpace(existing.APIURL), "/")
-	}
-	return config.DefaultAPIURL
+	add(config.DefaultAPIURL, &candidates)
+	add(config.DevAPIURL, &candidates)
+	return candidates
 }
 
 func saveVerifiedConfig(apiKey string, apiURL string) (*models.Config, *models.WhoAmIResponse, string, error) {
+	verification, err := verifyAPIKey(apiKey, apiURL)
+	if err != nil {
+		return nil, nil, "", err
+	}
 	cfg := &models.Config{
 		APIKey: strings.TrimSpace(apiKey),
-		APIURL: strings.TrimRight(strings.TrimSpace(apiURL), "/"),
+		APIURL: verification.APIURL,
 	}
 	if cfg.APIKey == "" {
 		return nil, nil, "", fmt.Errorf("API key is required")
@@ -142,37 +159,41 @@ func saveVerifiedConfig(apiKey string, apiURL string) (*models.Config, *models.W
 	if cfg.APIURL == "" {
 		cfg.APIURL = config.DefaultAPIURL
 	}
-
-	client := api.New(cfg)
-	whoami, err := client.Verify()
-	if err != nil {
-		return nil, nil, "", fmt.Errorf("verifying API key with %s: %w", cfg.APIURL, err)
-	}
 	if err := config.Save(cfg); err != nil {
 		return nil, nil, "", err
 	}
 
 	p, _ := config.Path()
-	return cfg, whoami, p, nil
+	return cfg, verification.WhoAmI, p, nil
 }
 
-func verifyAPIKey(apiKey string, apiURL string) error {
-	cfg := &models.Config{
-		APIKey: strings.TrimSpace(apiKey),
-		APIURL: strings.TrimRight(strings.TrimSpace(apiURL), "/"),
-	}
-	if cfg.APIKey == "" {
-		return fmt.Errorf("API key is required")
-	}
-	if cfg.APIURL == "" {
-		cfg.APIURL = config.DefaultAPIURL
+func verifyAPIKey(apiKey string, apiURL string) (apiKeyVerificationResult, error) {
+	var result apiKeyVerificationResult
+	key := strings.TrimSpace(apiKey)
+	if key == "" {
+		return result, fmt.Errorf("API key is required")
 	}
 
-	client := api.New(cfg)
-	if _, err := client.Verify(); err != nil {
-		return fmt.Errorf("verifying API key with %s: %w", cfg.APIURL, err)
+	var errs []string
+	for _, candidate := range setupAPIURLCandidates(apiURL) {
+		cfg := &models.Config{
+			APIKey: key,
+			APIURL: candidate,
+		}
+		client := api.New(cfg)
+		whoami, err := client.Verify()
+		if err == nil {
+			result.APIURL = candidate
+			result.WhoAmI = whoami
+			return result, nil
+		}
+		errs = append(errs, fmt.Sprintf("%s: %v", candidate, err))
 	}
-	return nil
+
+	if len(errs) == 1 {
+		return result, fmt.Errorf("verifying API key with %s", errs[0])
+	}
+	return result, fmt.Errorf("verifying API key failed across endpoints: %s", strings.Join(errs, " ; "))
 }
 
 func setupAgentOrder() []agent.Info {

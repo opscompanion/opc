@@ -67,7 +67,7 @@ func TestSetupFlowShowsCodexConfirmForRepoSelection(t *testing.T) {
 	}
 }
 
-func TestSetupSecureSecretMsgAdvancesToAPIURL(t *testing.T) {
+func TestSetupSecureSecretStartsVerification(t *testing.T) {
 	model := newSetupModel(nil, "", agent.Info{}, "", false, packageRunner{})
 	model.beginAPIKeyPrompt()
 	if model.textPrompt.Label != "api key" {
@@ -107,20 +107,26 @@ func TestSetupConfigChoiceAutoOpensSecureInput(t *testing.T) {
 	}
 }
 
-func TestSetupAPIKeyVerifyDoneAdvancesToAPIURL(t *testing.T) {
+func TestSetupAPIKeyVerifyDoneAdvancesToAgents(t *testing.T) {
 	model := newSetupModel(nil, "", agent.Info{}, "", false, packageRunner{})
 	model.beginAPIKeyPrompt()
 	model.apiKeyCandidate = "mock-key"
 	model.apiKeyVerifySeq = 1
 	model.apiKeyVerifying = true
 
-	updated, _ := model.handleAPIKeyVerifyDone(apiKeyVerifyDoneMsg{seq: 1})
+	updated, _ := model.handleAPIKeyVerifyDone(apiKeyVerifyDoneMsg{
+		seq:    1,
+		result: apiKeyVerificationResult{APIURL: "https://api.opscompanion.ai/v1"},
+	})
 	got := updated.(*setupModel)
-	if got.stage != setupStageAPIURL {
-		t.Fatalf("stage = %v, want api url", got.stage)
+	if got.stage != setupStageAgents {
+		t.Fatalf("stage = %v, want agents", got.stage)
 	}
 	if got.plan.APIKey != "mock-key" {
 		t.Fatalf("plan.APIKey = %q", got.plan.APIKey)
+	}
+	if got.plan.APIURL != "https://api.opscompanion.ai/v1" {
+		t.Fatalf("plan.APIURL = %q", got.plan.APIURL)
 	}
 	if len(got.transcript) == 0 || !strings.Contains(got.transcript[0].Answer, "*") {
 		t.Fatalf("transcript = %#v", got.transcript)

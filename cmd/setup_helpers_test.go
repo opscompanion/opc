@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/opscompanion/opc/internal/config"
-	"github.com/opscompanion/opc/internal/models"
 )
 
 func TestFindGitRoot(t *testing.T) {
@@ -72,20 +71,20 @@ func TestDetectPackageRunnerDefaultsToNpx(t *testing.T) {
 	}
 }
 
-func TestResolveSetupAPIURL(t *testing.T) {
-	existing := &models.Config{APIURL: "https://saved.example/v1/"}
-	if got := resolveSetupAPIURL("", existing); got != "https://saved.example/v1" {
-		t.Fatalf("resolveSetupAPIURL(existing) = %q", got)
+func TestSetupAPIURLCandidatesDefaultOrder(t *testing.T) {
+	got := setupAPIURLCandidates("")
+	if len(got) != 2 {
+		t.Fatalf("setupAPIURLCandidates() len = %d", len(got))
 	}
-
-	t.Setenv("OPSCOMPANION_API_URL", "https://env.example/v1/")
-	if got := resolveSetupAPIURL("", existing); got != "https://env.example/v1" {
-		t.Fatalf("resolveSetupAPIURL(env) = %q", got)
+	if got[0] != config.DefaultAPIURL || got[1] != config.DevAPIURL {
+		t.Fatalf("setupAPIURLCandidates() = %#v", got)
 	}
+}
 
-	t.Setenv("OPSCOMPANION_API_URL", "")
-	if got := resolveSetupAPIURL("", nil); got != config.DefaultAPIURL {
-		t.Fatalf("resolveSetupAPIURL(default) = %q", got)
+func TestSetupAPIURLCandidatesOverrideOnly(t *testing.T) {
+	got := setupAPIURLCandidates("https://custom.example/v1/")
+	if len(got) != 1 || got[0] != "https://custom.example/v1" {
+		t.Fatalf("setupAPIURLCandidates() = %#v", got)
 	}
 }
 

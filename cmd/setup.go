@@ -36,7 +36,6 @@ type setupStage int
 const (
 	setupStageConfigChoice setupStage = iota
 	setupStageAPIKey
-	setupStageAPIURL
 	setupStageAgents
 	setupStageCodexRepoSkills
 	setupStageExecuting
@@ -54,8 +53,9 @@ type setupDoneMsg struct {
 }
 
 type apiKeyVerifyDoneMsg struct {
-	seq int
-	err error
+	seq    int
+	result apiKeyVerificationResult
+	err    error
 }
 
 type apiKeySpinnerMsg struct{}
@@ -94,7 +94,6 @@ func newSetupModel(existing *models.Config, apiURLOverride string, detected agen
 		runner:   runner,
 		plan: setupPlan{
 			ConfigMode:    configModeOverwrite,
-			APIURL:        strings.TrimSpace(apiURLOverride),
 			CodexRepoRoot: repoRoot,
 			CodexRunner:   runner,
 		},
@@ -182,8 +181,7 @@ func executeSetupPlan(plan setupPlan, existing *models.Config, progress func(str
 		if plan.ConfigMode == configModeUpdate && apiKey == "" && existing != nil {
 			apiKey = existing.APIKey
 		}
-		apiURL := resolveSetupAPIURL(plan.APIURL, existing)
-		savedCfg, whoami, path, err := saveVerifiedConfig(apiKey, apiURL)
+		savedCfg, whoami, path, err := saveVerifiedConfig(apiKey, plan.APIURL)
 		if err != nil {
 			return result, err
 		}
@@ -289,7 +287,7 @@ func (m *setupModel) updateKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch m.stage {
 	case setupStageConfigChoice:
 		return m.updateSelect(msg)
-	case setupStageAPIKey, setupStageAPIURL:
+	case setupStageAPIKey:
 		return m.updateText(msg)
 	case setupStageAgents:
 		return m.updateMultiselect(msg)
@@ -332,17 +330,7 @@ func (m *setupModel) updateText(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	switch msg.Type {
 	case tea.KeyEnter:
-		value := strings.TrimSpace(m.textPrompt.Value)
-		switch m.stage {
-		case setupStageAPIURL:
-			m.err = ""
-			if value != "" {
-				m.plan.APIURL = value
-			}
-			answer := resolveSetupAPIURL(m.plan.APIURL, m.existing)
-			m.completePrompt(answer)
-			m.beginAgentsPrompt()
-		}
+		return m, nil
 	case tea.KeyBackspace, tea.KeyDelete:
 		m.textPrompt.Update(msg)
 	default:
@@ -367,7 +355,7 @@ func (m *setupModel) beginAPIKeyVerification(value string) (tea.Model, tea.Cmd) 
 	m.textPrompt.StatusIcon = "-"
 	m.textPrompt.StatusText = "Checking API key..."
 	m.spinnerFrame = 0
-	return m, tea.Batch(verifyAPIKeyCmd(resolveSetupAPIURL(m.plan.APIURL, m.existing), value, seq), scheduleAPIKeySpinner())
+	return m, tea.Batch(verifyAPIKeyCmd(m.plan.APIURL, value, seq), scheduleAPIKeySpinner())
 }
 
 func (m *setupModel) handleAPIKeyVerifyDone(msg apiKeyVerifyDoneMsg) (tea.Model, tea.Cmd) {
@@ -389,8 +377,9 @@ func (m *setupModel) handleAPIKeyVerifyDone(msg apiKeyVerifyDoneMsg) (tea.Model,
 	m.textPrompt.StatusText = "API key verified"
 	m.textPrompt.Hint = apiKeyPromptHint(m.plan.ConfigMode)
 	m.plan.APIKey = m.apiKeyCandidate
+	m.plan.APIURL = msg.result.APIURL
 	m.completePrompt(maskSetupValue(m.apiKeyCandidate, true, false))
-	m.beginAPIURLPrompt()
+	m.beginAgentsPrompt()
 	return m, nil
 }
 
@@ -426,10 +415,11 @@ func validateAPIKeyInput(value string) string {
 
 func verifyAPIKeyCmd(apiURL string, value string, seq int) tea.Cmd {
 	return func() tea.Msg {
-		err := verifyAPIKey(value, apiURL)
+		result, err := verifyAPIKey(value, apiURL)
 		return apiKeyVerifyDoneMsg{
-			seq: seq,
-			err: err,
+			seq:    seq,
+			result: result,
+			err:    err,
 		}
 	}
 }
@@ -453,7 +443,7 @@ func (m *setupModel) handleSecureSecretMsg(msg tui.SecretResultMsg) (tea.Model, 
 			m.err = ""
 			m.plan.APIKey = value
 			m.completePrompt(maskSetupValue(value, true, true))
-			m.beginAPIURLPrompt()
+			m.beginAgentsPrompt()
 			return m, nil
 		}
 		m.err = ""
@@ -548,19 +538,6 @@ func apiKeyPromptHint(mode configMode) string {
 	return "Paste is supported in secure input."
 }
 
-func (m *setupModel) beginAPIURLPrompt() {
-	m.stage = setupStageAPIURL
-	m.textPrompt = &tui.TextPromptModel{
-		Label:      "api url",
-		Message:    "What API URL should OpsCompanion use?",
-		InputLabel: "API URL",
-		Value:      resolveSetupAPIURL(m.plan.APIURL, m.existing),
-		Secret:     false,
-		Hint:       "Press Enter to keep the detected/default URL.",
-	}
-	m.err = ""
-}
-
 func (m *setupModel) beginAgentsPrompt() {
 	m.stage = setupStageAgents
 	options := make([]tui.SelectOption, 0, len(setupAgentOrder()))
@@ -634,7 +611,7 @@ func (m *setupModel) completePrompt(answer string) {
 	case setupStageConfigChoice:
 		label = m.selectPrompt.Label
 		message = m.selectPrompt.Message
-	case setupStageAPIKey, setupStageAPIURL:
+	case setupStageAPIKey:
 		label = m.textPrompt.Label
 		message = m.textPrompt.Message
 	case setupStageAgents:
@@ -663,7 +640,7 @@ func (m *setupModel) View() string {
 	case setupStageConfigChoice:
 		m.selectPrompt.Err = m.err
 		sections = append(sections, m.selectPrompt.View())
-	case setupStageAPIKey, setupStageAPIURL:
+	case setupStageAPIKey:
 		m.textPrompt.Err = m.err
 		sections = append(sections, m.textPrompt.View())
 	case setupStageAgents:

@@ -15,6 +15,7 @@ const (
 	configDir     = ".config/opscompanion"
 	configFile    = "config.json"
 	DefaultAPIURL = "https://api.opscompanion.ai/v1"
+	DevAPIURL     = "https://dev-api.opscompanion.ai/v1"
 )
 
 // Path returns the full path to the config file.
