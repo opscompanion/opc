@@ -16,7 +16,7 @@ var initAPIURL string
 
 var initCmd = &cobra.Command{
 	Use:   "init",
-	Short: "Configure opc with your API key and endpoint",
+	Short: "Legacy config-only setup (soon to be deprecated)",
 	RunE:  runInit,
 }
 

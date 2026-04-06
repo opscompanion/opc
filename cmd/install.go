@@ -23,7 +23,7 @@ const (
 
 var installCmd = &cobra.Command{
 	Use:   "install",
-	Short: "Install OpsCompanion skills and hooks for an agent",
+	Short: "Legacy agent install flow (soon to be deprecated)",
 	Long: `Sets up OpsCompanion for the specified agent runtime.
 
 When run in an interactive terminal without --agent, opc prompts for the
