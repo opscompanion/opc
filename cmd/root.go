@@ -53,6 +53,13 @@ context, knowledge, memory, and local capture tooling for agent-assisted workflo
 	},
 }
 
+const (
+	commandGroupMain   = "main"
+	commandGroupLegacy = "legacy"
+)
+
+var commandGroupsConfigured bool
+
 func shouldCheckUpdate(cmd *cobra.Command) bool {
 	if os.Getenv("OPC_NO_UPDATE_CHECK") != "" {
 		return false
@@ -62,10 +69,39 @@ func shouldCheckUpdate(cmd *cobra.Command) bool {
 }
 
 func Execute() {
+	configureCommandGroups()
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+}
+
+func configureCommandGroups() {
+	if commandGroupsConfigured {
+		return
+	}
+	rootCmd.AddGroup(
+		&cobra.Group{
+			ID:    commandGroupMain,
+			Title: "Available Commands",
+		},
+		&cobra.Group{
+			ID:    commandGroupLegacy,
+			Title: "Legacy Commands (soon to be deprecated)",
+		},
+	)
+
+	for _, cmd := range rootCmd.Commands() {
+		switch cmd.Name() {
+		case "init", "install":
+			cmd.GroupID = commandGroupLegacy
+		default:
+			if cmd.Name() != "help" {
+				cmd.GroupID = commandGroupMain
+			}
+		}
+	}
+	commandGroupsConfigured = true
 }
 
 func init() {

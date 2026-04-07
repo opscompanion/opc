@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/opscompanion/opc/internal/agent"
-	"github.com/opscompanion/opc/internal/config"
 	"github.com/opscompanion/opc/internal/models"
 	"github.com/spf13/cobra"
 )
@@ -24,8 +23,13 @@ const (
 
 var installCmd = &cobra.Command{
 	Use:   "install",
-	Short: "Install OpsCompanion skills and hooks for an agent",
-	Long: `Sets up OpsCompanion for the specified agent runtime:
+	Short: "Legacy agent install flow (soon to be deprecated)",
+	Long: `Sets up OpsCompanion for the specified agent runtime.
+
+When run in an interactive terminal without --agent, opc prompts for the
+target runtime instead of failing immediately.
+
+Examples:
 
   opc install --agent claude    Install plugin + hooks for Claude Code
   opc install --agent codex     Install skills + hooks for Codex
@@ -45,91 +49,49 @@ func init() {
 }
 
 func runInstall(cmd *cobra.Command, args []string) error {
+	printLegacyCommandWarning()
+
 	ag := ActiveAgent
 	if ag.Name == agent.Unknown || ag.Name == agent.Auto {
-		return fmt.Errorf("--agent is required for install (e.g. opc install --agent claude)")
+		if !isInteractiveSession() {
+			return fmt.Errorf("--agent is required for install (e.g. opc install --agent claude)")
+		}
+		selected, err := runAgentSelectModel()
+		if err != nil {
+			return err
+		}
+		ag = selected
 	}
 
-	fmt.Println()
 	fmt.Println("  opscompanion installer")
 	fmt.Println()
 
 	// ── 1. Ensure skills repo ──────────────────────────────────────────────
 
-	home, err := os.UserHomeDir()
+	installDir, err := ensureSkillsRepo()
 	if err != nil {
-		return fmt.Errorf("cannot determine home directory: %w", err)
-	}
-	installDir := filepath.Join(home, ".opscompanion", "skills")
-
-	if isGitRepo(installDir) {
-		fmt.Println("  Updating skills...")
-		if err := gitCmd(installDir, "pull", "--quiet"); err != nil {
-			fmt.Fprintf(os.Stderr, "  warning: git pull failed: %v\n", err)
-		}
-	} else {
-		fmt.Println("  Downloading skills...")
-		os.RemoveAll(installDir)
-		if err := os.MkdirAll(filepath.Dir(installDir), 0755); err != nil {
-			return fmt.Errorf("creating skills directory: %w", err)
-		}
-		if err := gitClone(skillsRepo, installDir); err != nil {
-			return fmt.Errorf("cloning skills repo: %w", err)
-		}
+		return err
 	}
 
 	// ── 2. Ensure config exists ────────────────────────────────────────────
 
-	cfg, _ := config.Load()
-	if cfg == nil {
-		cfg = &models.Config{
-			APIURL: config.DefaultAPIURL,
-			APIKey: "mock-key",
-		}
-		if err := config.Save(cfg); err != nil {
-			return fmt.Errorf("writing mock config: %w", err)
-		}
-		fmt.Println("  config: mock mode (run `opc init` to configure)")
-	} else {
-		p, _ := config.Path()
-		fmt.Printf("  config: %s\n", p)
+	cfg, _, err := ensureInstallConfig()
+	if err != nil {
+		return err
 	}
 
 	// ── 3. Agent-specific installation ─────────────────────────────────────
 
-	switch ag.Name {
-	case agent.Claude:
-		if err := installClaude(installDir); err != nil {
-			return err
-		}
-	case agent.Codex:
-		if err := installCodex(installDir); err != nil {
-			return err
-		}
-	default:
-		fmt.Printf("  agent %q: no specific installer yet — generating hooks only\n", ag.Name)
+	if _, err := installForAgent(ag, installDir, cfg, nil); err != nil {
+		return err
 	}
 
 	// ── 4. Generate hooks ──────────────────────────────────────────────────
 
-	binary, err := os.Executable()
-	if err != nil {
-		binary = "opc"
-	}
-
 	fmt.Println()
 	fmt.Println("  Generating hooks...")
-	switch ag.HookFormat {
-	case "claude-hooks":
-		if err := generateClaudeHooks(binary, ag, cfg.APIKey); err != nil {
-			return fmt.Errorf("generating hooks: %w", err)
-		}
-	case "codex-hooks":
-		if err := generateCodexHooks(binary, ag, cfg.APIKey); err != nil {
-			return fmt.Errorf("generating hooks: %w", err)
-		}
-	default:
-		generateGenericHooks(binary, ag)
+	if _, _, err := generateHooksForAgent(ag, cfg); err != nil {
+		return fmt.Errorf("generating hooks: %w", err)
 	}
 
 	fmt.Println()
@@ -167,13 +129,27 @@ func installClaude(installDir string) error {
 	return nil
 }
 
-func installCodex(installDir string) error {
+func installClaudeQuiet(installDir string) error {
+	_ = installDir
+	marketplaceURL := "https://github.com/opscompanion/opscompanion-skills"
+
+	claudeBin, err := exec.LookPath("claude")
+	if err != nil {
+		return nil
+	}
+
+	runShellQuiet(claudeBin, "plugin", "marketplace", "add", marketplaceURL)
+	runShellQuiet(claudeBin, "plugin", "install", "opscompanion")
+	return nil
+}
+
+func installCodex(installDir string, cfg *models.Config, plan *setupPlan) (agentInstallResult, error) {
 	skillsSrc := filepath.Join(installDir, "agents", "skills")
 	home, _ := os.UserHomeDir()
 	skillsDst := filepath.Join(home, ".agents", "skills")
 
 	if err := os.MkdirAll(skillsDst, 0755); err != nil {
-		return fmt.Errorf("creating skills directory: %w", err)
+		return agentInstallResult{}, fmt.Errorf("creating skills directory: %w", err)
 	}
 
 	skills := []string{
@@ -188,7 +164,7 @@ func installCodex(installDir string) error {
 		target := filepath.Join(skillsSrc, skill)
 
 		// Remove existing link/dir
-		os.RemoveAll(link)
+		_ = os.RemoveAll(link)
 
 		if err := os.Symlink(target, link); err != nil {
 			fmt.Fprintf(os.Stderr, "  warning: failed to symlink %s: %v\n", skill, err)
@@ -197,7 +173,21 @@ func installCodex(installDir string) error {
 
 	rulesPath, added, err := ensureCodexOPCRule(home)
 	if err != nil {
-		return err
+		return agentInstallResult{}, err
+	}
+
+	result := agentInstallResult{
+		CodexRulesPath:  rulesPath,
+		CodexRulesAdded: added,
+	}
+
+	if plan != nil && plan.InstallCodexRepoSkills {
+		fmt.Printf("  Codex repo skills: %s\n", plan.CodexRunner.Display)
+		commandText, err := runCodexRepoSkillsInstall(plan.CodexRepoRoot, plan.CodexRunner)
+		result.RepoSkillsCmd = commandText
+		if err != nil {
+			return result, err
+		}
 	}
 
 	fmt.Println()
@@ -213,7 +203,55 @@ func installCodex(installDir string) error {
 	} else {
 		fmt.Printf("  Rules: opc prefix rule already present in %s\n", rulesPath)
 	}
-	return nil
+	_ = cfg
+	return result, nil
+}
+
+func installCodexQuiet(installDir string, cfg *models.Config, plan *setupPlan) (agentInstallResult, error) {
+	skillsSrc := filepath.Join(installDir, "agents", "skills")
+	home, _ := os.UserHomeDir()
+	skillsDst := filepath.Join(home, ".agents", "skills")
+
+	if err := os.MkdirAll(skillsDst, 0o755); err != nil {
+		return agentInstallResult{}, fmt.Errorf("creating skills directory: %w", err)
+	}
+
+	skills := []string{
+		"opscompanion-init",
+		"opscompanion-context",
+		"opscompanion-search",
+		"opscompanion-remember",
+	}
+
+	for _, skill := range skills {
+		link := filepath.Join(skillsDst, skill)
+		target := filepath.Join(skillsSrc, skill)
+		_ = os.RemoveAll(link)
+		if err := os.Symlink(target, link); err != nil {
+			return agentInstallResult{}, fmt.Errorf("symlinking %s: %w", skill, err)
+		}
+	}
+
+	rulesPath, added, err := ensureCodexOPCRule(home)
+	if err != nil {
+		return agentInstallResult{}, err
+	}
+
+	result := agentInstallResult{
+		CodexRulesPath:  rulesPath,
+		CodexRulesAdded: added,
+	}
+
+	if plan != nil && plan.InstallCodexRepoSkills {
+		commandText, err := runCodexRepoSkillsInstallQuiet(plan.CodexRepoRoot, plan.CodexRunner)
+		result.RepoSkillsCmd = commandText
+		if err != nil {
+			return result, err
+		}
+	}
+
+	_ = cfg
+	return result, nil
 }
 
 func ensureCodexOPCRule(home string) (path string, added bool, err error) {

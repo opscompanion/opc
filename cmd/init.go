@@ -1,23 +1,22 @@
 package cmd
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 	"strings"
 
-	"golang.org/x/term"
 	"github.com/opscompanion/opc/internal/api"
 	"github.com/opscompanion/opc/internal/config"
 	"github.com/opscompanion/opc/internal/models"
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 )
 
 var initAPIURL string
 
 var initCmd = &cobra.Command{
 	Use:   "init",
-	Short: "Configure opc with your API key and endpoint",
+	Short: "Legacy config-only setup (soon to be deprecated)",
 	RunE:  runInit,
 }
 
@@ -28,15 +27,17 @@ func init() {
 }
 
 func runInit(cmd *cobra.Command, args []string) error {
-	reader := bufio.NewReader(os.Stdin)
+	printLegacyCommandWarning()
 
 	// Check for existing config
 	existing, _ := config.Load()
 	if existing != nil {
 		fmt.Println("Existing configuration found.")
-		fmt.Print("Overwrite? [y/N]: ")
-		answer, _ := reader.ReadString('\n')
-		if strings.TrimSpace(strings.ToLower(answer)) != "y" {
+		confirmed, err := promptConfirmAction("confirm", "Overwrite the saved config?", false)
+		if err != nil {
+			return err
+		}
+		if !confirmed {
 			fmt.Println("Aborted.")
 			return nil
 		}
