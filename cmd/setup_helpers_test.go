@@ -81,13 +81,6 @@ func TestSetupAPIURLCandidatesDefaultOrder(t *testing.T) {
 	}
 }
 
-func TestSetupAPIURLCandidatesOverrideOnly(t *testing.T) {
-	got := setupAPIURLCandidates("https://custom.example/v1/")
-	if len(got) != 1 || got[0] != "https://custom.example/v1" {
-		t.Fatalf("setupAPIURLCandidates() = %#v", got)
-	}
-}
-
 func mustWriteFile(t *testing.T, path string, content string) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {

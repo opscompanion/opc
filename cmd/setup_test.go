@@ -11,7 +11,7 @@ import (
 )
 
 func TestSetupMultiselectSpaceAndAllToggle(t *testing.T) {
-	model := newSetupModel(nil, "", agent.Info{}, "", false, packageRunner{})
+	model := newSetupModel(nil, agent.Info{}, "", false, packageRunner{})
 	model.beginAgentsPrompt()
 
 	if got := len(model.collectSelectedAgents()); got != 0 {
@@ -32,7 +32,7 @@ func TestSetupMultiselectSpaceAndAllToggle(t *testing.T) {
 }
 
 func TestSetupMultiselectRequiresSelection(t *testing.T) {
-	model := newSetupModel(nil, "", agent.Info{}, "", false, packageRunner{})
+	model := newSetupModel(nil, agent.Info{}, "", false, packageRunner{})
 	model.beginAgentsPrompt()
 
 	updated, _ := model.updateMultiselect(tea.KeyMsg{Type: tea.KeyEnter})
@@ -43,7 +43,7 @@ func TestSetupMultiselectRequiresSelection(t *testing.T) {
 }
 
 func TestSetupMultiselectSummaryUsesStableOrder(t *testing.T) {
-	model := newSetupModel(nil, "", agent.Info{}, "", false, packageRunner{})
+	model := newSetupModel(nil, agent.Info{}, "", false, packageRunner{})
 	model.beginAgentsPrompt()
 	model.multiPrompt.SelectedValue[string(agent.OpenClaw)] = true
 	model.multiPrompt.SelectedValue[string(agent.Claude)] = true
@@ -56,7 +56,7 @@ func TestSetupMultiselectSummaryUsesStableOrder(t *testing.T) {
 }
 
 func TestSetupFlowShowsCodexConfirmForRepoSelection(t *testing.T) {
-	model := newSetupModel(nil, "", agent.Info{}, "/tmp/repo", true, packageRunner{Display: "npx"})
+	model := newSetupModel(nil, agent.Info{}, "/tmp/repo", true, packageRunner{Display: "npx"})
 	model.beginAgentsPrompt()
 	model.multiPrompt.SelectedValue[string(agent.Codex)] = true
 
@@ -68,7 +68,7 @@ func TestSetupFlowShowsCodexConfirmForRepoSelection(t *testing.T) {
 }
 
 func TestSetupExistingConfigShowsOnlyKeepAndOverwrite(t *testing.T) {
-	model := newSetupModel(&models.Config{APIKey: "existing", APIURL: "https://api.opscompanion.ai/v1"}, "", agent.Info{}, "", false, packageRunner{})
+	model := newSetupModel(&models.Config{APIKey: "existing", APIURL: "https://api.opscompanion.ai/v1"}, agent.Info{}, "", false, packageRunner{})
 	if len(model.selectPrompt.Options) != 2 {
 		t.Fatalf("options len = %d", len(model.selectPrompt.Options))
 	}
@@ -78,7 +78,7 @@ func TestSetupExistingConfigShowsOnlyKeepAndOverwrite(t *testing.T) {
 }
 
 func TestSetupSecureSecretStartsVerification(t *testing.T) {
-	model := newSetupModel(nil, "", agent.Info{}, "", false, packageRunner{})
+	model := newSetupModel(nil, agent.Info{}, "", false, packageRunner{})
 	model.beginAPIKeyPrompt()
 	if model.textPrompt.Label != "api key" {
 		t.Fatalf("textPrompt.Label = %q", model.textPrompt.Label)
@@ -98,14 +98,14 @@ func TestSetupSecureSecretStartsVerification(t *testing.T) {
 }
 
 func TestSetupInitAutoOpensSecureInput(t *testing.T) {
-	model := newSetupModel(nil, "", agent.Info{}, "", false, packageRunner{})
+	model := newSetupModel(nil, agent.Info{}, "", false, packageRunner{})
 	if cmd := model.Init(); cmd == nil {
 		t.Fatal("expected secure input command on initial api key step")
 	}
 }
 
 func TestSetupConfigChoiceAutoOpensSecureInput(t *testing.T) {
-	model := newSetupModel(&models.Config{APIKey: "existing", APIURL: "https://api.opscompanion.ai/v1"}, "", agent.Info{}, "", false, packageRunner{})
+	model := newSetupModel(&models.Config{APIKey: "existing", APIURL: "https://api.opscompanion.ai/v1"}, agent.Info{}, "", false, packageRunner{})
 	model.selectPrompt.Index = 1
 	updated, cmd := model.updateSelect(tea.KeyMsg{Type: tea.KeyEnter})
 	got := updated.(*setupModel)
@@ -118,7 +118,7 @@ func TestSetupConfigChoiceAutoOpensSecureInput(t *testing.T) {
 }
 
 func TestSetupAPIKeyVerifyDoneAdvancesToAgents(t *testing.T) {
-	model := newSetupModel(nil, "", agent.Info{}, "", false, packageRunner{})
+	model := newSetupModel(nil, agent.Info{}, "", false, packageRunner{})
 	model.beginAPIKeyPrompt()
 	model.apiKeyCandidate = "mock-key"
 	model.apiKeyVerifySeq = 1
@@ -144,7 +144,7 @@ func TestSetupAPIKeyVerifyDoneAdvancesToAgents(t *testing.T) {
 }
 
 func TestSetupSecureSecretCancelQuits(t *testing.T) {
-	model := newSetupModel(nil, "", agent.Info{}, "", false, packageRunner{})
+	model := newSetupModel(nil, agent.Info{}, "", false, packageRunner{})
 	model.beginAPIKeyPrompt()
 	updated, cmd := model.handleSecureSecretMsg(tui.SecretResultMsg{Err: tui.ErrSecretInputCancelled})
 	got := updated.(*setupModel)
@@ -157,7 +157,7 @@ func TestSetupSecureSecretCancelQuits(t *testing.T) {
 }
 
 func TestSetupSecureSecretEmptyValueShowsRetryHint(t *testing.T) {
-	model := newSetupModel(nil, "", agent.Info{}, "", false, packageRunner{})
+	model := newSetupModel(nil, agent.Info{}, "", false, packageRunner{})
 	model.beginAPIKeyPrompt()
 	updated, _ := model.handleSecureSecretMsg(tui.SecretResultMsg{Value: ""})
 	got := updated.(*setupModel)
@@ -231,7 +231,7 @@ func TestExecuteSetupPlanKeepExistingReportsProgress(t *testing.T) {
 }
 
 func TestSetupDoneMessageQuitsImmediately(t *testing.T) {
-	model := newSetupModel(nil, "", agent.Info{}, "", false, packageRunner{})
+	model := newSetupModel(nil, agent.Info{}, "", false, packageRunner{})
 	updated, cmd := model.Update(setupDoneMsg{
 		result: setupResult{
 			AgentResults: []agentSetupResult{

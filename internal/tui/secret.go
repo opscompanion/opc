@@ -34,6 +34,7 @@ var (
 	enableSecretMode     = setSecretInputMode
 	notifyInterrupt      = func(ch chan<- os.Signal) { signal.Notify(ch, os.Interrupt, syscall.SIGINT) }
 	stopInterruptNotify  = signal.Stop
+	readSecretInput      = readSecretFileWithCancel
 )
 
 func (c *passwordExecCommand) SetStdin(r io.Reader)  { c.stdin = r }
@@ -73,7 +74,7 @@ func ReadSecretWithCancel(inFile *os.File, outFile *os.File, prompt string) (str
 		return "", err
 	}
 
-	secret, err := readSecretWithInterrupt(inFile)
+	secret, err := readSecretInput(inFile)
 	if err != nil {
 		if isSecretInputCancel(err) {
 			return "", ErrSecretInputCancelled
@@ -81,30 +82,6 @@ func ReadSecretWithCancel(inFile *os.File, outFile *os.File, prompt string) (str
 		return "", fmt.Errorf("reading secret: %w", err)
 	}
 	return secret, nil
-}
-
-type secretReadResult struct {
-	value string
-	err   error
-}
-
-func readSecretWithInterrupt(r io.Reader) (string, error) {
-	resultCh := make(chan secretReadResult, 1)
-	interruptCh := make(chan os.Signal, 1)
-	notifyInterrupt(interruptCh)
-	defer stopInterruptNotify(interruptCh)
-
-	go func() {
-		value, err := readSecretBytes(r)
-		resultCh <- secretReadResult{value: value, err: err}
-	}()
-
-	select {
-	case result := <-resultCh:
-		return result.value, result.err
-	case <-interruptCh:
-		return "", ErrSecretInputCancelled
-	}
 }
 
 func readSecretBytes(r io.Reader) (string, error) {

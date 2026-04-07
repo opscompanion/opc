@@ -60,6 +60,9 @@ func TestRunResetDeletesConfigAfterConfirmation(t *testing.T) {
 	if !strings.Contains(output, "Deleted config:") {
 		t.Fatalf("output = %q", output)
 	}
+	if !strings.Contains(output, "Run `opc setup` to configure OpsCompanion again.") {
+		t.Fatalf("output = %q", output)
+	}
 	if cfg, err := config.Load(); err != nil || cfg != nil {
 		t.Fatalf("config should be deleted, cfg=%v err=%v", cfg, err)
 	}

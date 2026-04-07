@@ -27,6 +27,8 @@ func init() {
 }
 
 func runInit(cmd *cobra.Command, args []string) error {
+	printLegacyCommandWarning()
+
 	// Check for existing config
 	existing, _ := config.Load()
 	if existing != nil {

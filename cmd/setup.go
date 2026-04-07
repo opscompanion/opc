@@ -15,8 +15,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var setupAPIURL string
-
 var setupCmd = &cobra.Command{
 	Use:   "setup",
 	Short: "Interactive onboarding for OpsCompanion",
@@ -26,8 +24,6 @@ selects one or more agents, installs skills/plugins, and generates hooks in one 
 }
 
 func init() {
-	setupCmd.Flags().StringVar(&setupAPIURL, "api-url", "", "override the OpsCompanion API URL")
-	_ = setupCmd.Flags().MarkHidden("api-url")
 	rootCmd.AddCommand(setupCmd)
 }
 
@@ -85,7 +81,7 @@ type setupModel struct {
 	spinnerFrame    int
 }
 
-func newSetupModel(existing *models.Config, apiURLOverride string, detected agent.Info, repoRoot string, inRepo bool, runner packageRunner) *setupModel {
+func newSetupModel(existing *models.Config, detected agent.Info, repoRoot string, inRepo bool, runner packageRunner) *setupModel {
 	model := &setupModel{
 		existing: existing,
 		detected: detected,
@@ -137,7 +133,7 @@ func runSetup(cmd *cobra.Command, args []string) error {
 		runner = detectPackageRunner(repoRoot)
 	}
 
-	model := newSetupModel(existing, setupAPIURL, ActiveAgent, repoRoot, inRepo, runner)
+	model := newSetupModel(existing, ActiveAgent, repoRoot, inRepo, runner)
 	finalModel, err := tea.NewProgram(model).Run()
 	if err != nil {
 		return err
@@ -174,12 +170,9 @@ func executeSetupPlan(plan setupPlan, existing *models.Config, progress func(str
 		p, _ := config.Path()
 		result.ConfigPath = p
 		report("Using existing config")
-	case configModeUpdate, configModeOverwrite:
+	case configModeOverwrite:
 		report("Verifying API key")
 		apiKey := strings.TrimSpace(plan.APIKey)
-		if plan.ConfigMode == configModeUpdate && apiKey == "" && existing != nil {
-			apiKey = existing.APIKey
-		}
 		savedCfg, whoami, path, err := saveVerifiedConfig(apiKey, plan.APIURL)
 		if err != nil {
 			return result, err
@@ -342,7 +335,7 @@ func (m *setupModel) openSecureAPIKeyInput() tea.Cmd {
 	m.err = ""
 	m.textPrompt.StatusIcon = ""
 	m.textPrompt.StatusText = ""
-	m.textPrompt.Hint = apiKeyPromptHint(m.plan.ConfigMode)
+	m.textPrompt.Hint = apiKeyPromptHint()
 	return tui.PromptSecureSecretInput("API Key: ")
 }
 
@@ -374,7 +367,7 @@ func (m *setupModel) handleAPIKeyVerifyDone(msg apiKeyVerifyDoneMsg) (tea.Model,
 	m.err = ""
 	m.textPrompt.StatusIcon = "✓"
 	m.textPrompt.StatusText = "API key verified"
-	m.textPrompt.Hint = apiKeyPromptHint(m.plan.ConfigMode)
+	m.textPrompt.Hint = apiKeyPromptHint()
 	m.plan.APIKey = m.apiKeyCandidate
 	m.plan.APIURL = msg.result.APIURL
 	m.completePrompt(maskSetupValue(m.apiKeyCandidate, true, false))
@@ -438,13 +431,6 @@ func (m *setupModel) handleSecureSecretMsg(msg tui.SecretResultMsg) (tea.Model, 
 
 	value := strings.TrimSpace(msg.Value)
 	if value == "" {
-		if m.plan.ConfigMode == configModeUpdate && m.existing != nil {
-			m.err = ""
-			m.plan.APIKey = value
-			m.completePrompt(maskSetupValue(value, true, true))
-			m.beginAgentsPrompt()
-			return m, nil
-		}
 		m.err = ""
 		m.textPrompt.StatusIcon = "x"
 		m.textPrompt.StatusText = "API key is required."
@@ -522,18 +508,11 @@ func (m *setupModel) beginAPIKeyPrompt() {
 		InputLabel:  "Press Enter to submit key securely",
 		Secret:      true,
 	}
-	if m.plan.ConfigMode == configModeUpdate {
-		m.textPrompt.Hint = apiKeyPromptHint(m.plan.ConfigMode)
-	} else {
-		m.textPrompt.Hint = apiKeyPromptHint(m.plan.ConfigMode)
-	}
+	m.textPrompt.Hint = apiKeyPromptHint()
 	m.err = ""
 }
 
-func apiKeyPromptHint(mode configMode) string {
-	if mode == configModeUpdate {
-		return "Paste is supported in secure input. Submit an empty value there to keep the current key."
-	}
+func apiKeyPromptHint() string {
 	return "Paste is supported in secure input."
 }
 

@@ -20,7 +20,6 @@ type configMode string
 
 const (
 	configModeKeep      configMode = "keep"
-	configModeUpdate    configMode = "update"
 	configModeOverwrite configMode = "overwrite"
 )
 
@@ -113,7 +112,7 @@ func ensureInstallConfig() (*models.Config, string, error) {
 		if err := config.Save(cfg); err != nil {
 			return nil, "", fmt.Errorf("writing mock config: %w", err)
 		}
-		fmt.Println("  config: mock mode (run `opc init` or `opc setup` to configure)")
+		fmt.Println("  config: mock mode (run `opc setup` to configure)")
 	} else {
 		p, _ := config.Path()
 		fmt.Printf("  config: %s\n", p)

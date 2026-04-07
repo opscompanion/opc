@@ -49,6 +49,8 @@ func init() {
 }
 
 func runInstall(cmd *cobra.Command, args []string) error {
+	printLegacyCommandWarning()
+
 	ag := ActiveAgent
 	if ag.Name == agent.Unknown || ag.Name == agent.Auto {
 		if !isInteractiveSession() {
@@ -61,7 +63,6 @@ func runInstall(cmd *cobra.Command, args []string) error {
 		ag = selected
 	}
 
-	fmt.Println()
 	fmt.Println("  opscompanion installer")
 	fmt.Println()
 

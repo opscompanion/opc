@@ -50,6 +50,6 @@ func runReset(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Printf("Deleted config: %s\n", deletedPath)
-	fmt.Println("Run `opc setup` or `opc init` to configure OpsCompanion again.")
+	fmt.Println("Run `opc setup` to configure OpsCompanion again.")
 	return nil
 }

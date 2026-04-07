@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"golang.org/x/term"
 )
@@ -77,10 +78,12 @@ func TestReadSecretWithCancelRestoresStateOnCancel(t *testing.T) {
 	oldGetState := getTerminalState
 	oldRestore := restoreTerminalState
 	oldEnable := enableSecretMode
+	oldRead := readSecretInput
 	t.Cleanup(func() {
 		getTerminalState = oldGetState
 		restoreTerminalState = oldRestore
 		enableSecretMode = oldEnable
+		readSecretInput = oldRead
 	})
 
 	var restored bool
@@ -90,11 +93,7 @@ func TestReadSecretWithCancelRestoresStateOnCancel(t *testing.T) {
 		return nil
 	}
 	enableSecretMode = func(fd int) error { return nil }
-
-	go func() {
-		_, _ = inWriter.Write([]byte{3})
-		_ = inWriter.Close()
-	}()
+	readSecretInput = func(*os.File) (string, error) { return "", ErrSecretInputCancelled }
 
 	_, err = ReadSecretWithCancel(inReader, outWriter, "API Key: ")
 	if !errors.Is(err, ErrSecretInputCancelled) {
@@ -127,10 +126,12 @@ func TestReadSecretWithCancelRestoresStateOnEnableError(t *testing.T) {
 	oldGetState := getTerminalState
 	oldRestore := restoreTerminalState
 	oldEnable := enableSecretMode
+	oldRead := readSecretInput
 	t.Cleanup(func() {
 		getTerminalState = oldGetState
 		restoreTerminalState = oldRestore
 		enableSecretMode = oldEnable
+		readSecretInput = oldRead
 	})
 
 	getTerminalState = func(fd int) (*term.State, error) { return &term.State{}, nil }
@@ -146,20 +147,32 @@ func TestReadSecretWithCancelRestoresStateOnEnableError(t *testing.T) {
 	}
 }
 
-func TestReadSecretWithInterruptCancelsOnSignal(t *testing.T) {
+func TestReadSecretFileWithCancelCancelsOnSignal(t *testing.T) {
 	oldNotify := notifyInterrupt
 	oldStop := stopInterruptNotify
+	oldWait := waitForSecretInput
 	t.Cleanup(func() {
 		notifyInterrupt = oldNotify
 		stopInterruptNotify = oldStop
+		waitForSecretInput = oldWait
 	})
 
 	notifyInterrupt = func(ch chan<- os.Signal) {
 		ch <- os.Interrupt
 	}
 	stopInterruptNotify = func(ch chan<- os.Signal) {}
+	waitForSecretInput = func(int, time.Duration) (bool, error) {
+		return false, nil
+	}
 
-	_, err := readSecretWithInterrupt(strings.NewReader("will-not-be-read"))
+	inReader, inWriter, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("os.Pipe() error = %v", err)
+	}
+	defer inReader.Close()
+	defer inWriter.Close()
+
+	_, err = readSecretFileWithCancel(inReader)
 	if !errors.Is(err, ErrSecretInputCancelled) {
 		t.Fatalf("expected interrupt cancel, got %v", err)
 	}

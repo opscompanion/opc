@@ -112,7 +112,7 @@ func RequireConfig() (*models.Config, error) {
 		return nil, err
 	}
 	if cfg == nil {
-		return nil, fmt.Errorf("opc is not configured — run `opc setup` or `opc init` first")
+		return nil, fmt.Errorf("opc is not configured — run `opc setup` first")
 	}
 	return cfg, nil
 }
