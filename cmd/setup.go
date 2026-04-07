@@ -55,6 +55,7 @@ type apiKeyVerifyDoneMsg struct {
 }
 
 type apiKeySpinnerMsg struct{}
+type openSecureAPIKeyMsg struct{}
 
 type setupModel struct {
 	stage           setupStage
@@ -230,7 +231,7 @@ func executeSetupPlan(plan setupPlan, existing *models.Config, progress func(str
 
 func (m *setupModel) Init() tea.Cmd {
 	if m.stage == setupStageAPIKey && m.textPrompt != nil && m.textPrompt.Secret {
-		return m.openSecureAPIKeyInput()
+		return scheduleOpenSecureAPIKey()
 	}
 	return nil
 }
@@ -257,6 +258,11 @@ func (m *setupModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleAPIKeyVerifyDone(msg)
 	case apiKeySpinnerMsg:
 		return m.handleAPIKeySpinner()
+	case openSecureAPIKeyMsg:
+		if m.stage == setupStageAPIKey && m.textPrompt != nil && m.textPrompt.Secret && !m.apiKeyVerifying {
+			return m, m.openSecureAPIKeyInput()
+		}
+		return m, nil
 	case tui.SecretResultMsg:
 		return m.handleSecureSecretMsg(msg)
 	}
@@ -307,7 +313,7 @@ func (m *setupModel) updateSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m.beginAPIKeyPrompt()
-		return m, m.openSecureAPIKeyInput()
+		return m, scheduleOpenSecureAPIKey()
 	}
 	return m, nil
 }
@@ -370,7 +376,15 @@ func (m *setupModel) handleAPIKeyVerifyDone(msg apiKeyVerifyDoneMsg) (tea.Model,
 	m.textPrompt.Hint = apiKeyPromptHint()
 	m.plan.APIKey = m.apiKeyCandidate
 	m.plan.APIURL = msg.result.APIURL
-	m.completePrompt(maskSetupValue(m.apiKeyCandidate, true, false))
+	m.transcript = append(m.transcript, tui.TranscriptEntry{
+		Answer: apiKeyVerifiedSummary(msg.result.APIURL),
+		Icon:   "✓",
+	})
+	if scopes := apiKeyScopesSummary(msg.result.WhoAmI.APIKey.Scopes); scopes != "" {
+		m.transcript = append(m.transcript, tui.TranscriptEntry{
+			Answer: scopes,
+		})
+	}
 	m.beginAgentsPrompt()
 	return m, nil
 }
@@ -389,6 +403,12 @@ func (m *setupModel) handleAPIKeySpinner() (tea.Model, tea.Cmd) {
 func scheduleAPIKeySpinner() tea.Cmd {
 	return tea.Tick(100*time.Millisecond, func(time.Time) tea.Msg {
 		return apiKeySpinnerMsg{}
+	})
+}
+
+func scheduleOpenSecureAPIKey() tea.Cmd {
+	return tea.Tick(200*time.Millisecond, func(time.Time) tea.Msg {
+		return openSecureAPIKeyMsg{}
 	})
 }
 
@@ -516,16 +536,59 @@ func apiKeyPromptHint() string {
 	return "Paste is supported in secure input."
 }
 
+func apiKeyVerifiedSummary(apiURL string) string {
+	if strings.TrimRight(strings.TrimSpace(apiURL), "/") == config.DevAPIURL {
+		return "API key verified & saved (DEV KEY)"
+	}
+	return "API key verified & saved"
+}
+
+func apiKeyScopesSummary(scopes []string) string {
+	if len(scopes) == 0 {
+		return ""
+	}
+	const wrapAt = 72
+	const continuationIndent = "        "
+
+	label := "scopes"
+	if len(scopes) == 1 {
+		label = "scope"
+	}
+	line := fmt.Sprintf("%d %s:", len(scopes), label)
+	lines := []string{line}
+	currentLen := len(line)
+
+	for i, scope := range scopes {
+		segment := scope
+		if i == 0 {
+			segment = " " + scope
+		} else {
+			segment = ", " + scope
+		}
+
+		if currentLen+len(segment) > wrapAt && currentLen > len(line) {
+			lines = append(lines, continuationIndent+scope)
+			currentLen = len(continuationIndent) + len(scope)
+			continue
+		}
+
+		lines[len(lines)-1] += segment
+		currentLen += len(segment)
+	}
+
+	return strings.Join(lines, "\n")
+}
+
 func (m *setupModel) beginAgentsPrompt() {
 	m.stage = setupStageAgents
 	options := make([]tui.SelectOption, 0, len(setupAgentOrder()))
 	for _, ag := range setupAgentOrder() {
-		description := "Generate generic hooks only"
+		description := "Skills only"
 		switch ag.Name {
 		case agent.Claude:
-			description = "Install plugin registration and hooks"
+			description = "Install plugin registration, hooks, and OTEL"
 		case agent.Codex:
-			description = "Install skills, rules, and hooks"
+			description = "Install skills, rules, hooks, and OTEL"
 		}
 		options = append(options, tui.SelectOption{
 			Title:       agentDisplayName(ag),
@@ -667,7 +730,7 @@ func renderSuccessOutro(plan setupPlan, result setupResult) string {
 			summary += " • config: " + ag.ConfigPath
 		}
 		if ag.HooksPath == "" && ag.ConfigPath == "" {
-			summary += ": generic hook commands available"
+			summary += ": skills only"
 		}
 		lines = append(lines, tui.RenderMuted(summary))
 	}

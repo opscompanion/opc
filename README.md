@@ -140,8 +140,8 @@ An hour-long session might produce 500 events but only 3–5 memories.
 |-------|-------------|--------|
 | Claude Code | `opc setup` | Supported |
 | Codex | `opc setup` | Supported |
-| Cursor | `opc setup` | Generic hook setup available |
-| OpenClaw | `opc setup` | Generic hook setup available |
+| Cursor | `opc setup` | Skills only |
+| OpenClaw | `opc setup` | Skills only |
 
 ## Legacy commands
 

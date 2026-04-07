@@ -125,8 +125,13 @@ func TestSetupAPIKeyVerifyDoneAdvancesToAgents(t *testing.T) {
 	model.apiKeyVerifying = true
 
 	updated, _ := model.handleAPIKeyVerifyDone(apiKeyVerifyDoneMsg{
-		seq:    1,
-		result: apiKeyVerificationResult{APIURL: "https://api.opscompanion.ai/v1"},
+		seq: 1,
+		result: apiKeyVerificationResult{
+			APIURL: "https://api.opscompanion.ai/v1",
+			WhoAmI: &models.WhoAmIResponse{
+				APIKey: models.APIKeyIdentity{Scopes: []string{"logs:write", "memory:read"}},
+			},
+		},
 	})
 	got := updated.(*setupModel)
 	if got.stage != setupStageAgents {
@@ -138,8 +143,55 @@ func TestSetupAPIKeyVerifyDoneAdvancesToAgents(t *testing.T) {
 	if got.plan.APIURL != "https://api.opscompanion.ai/v1" {
 		t.Fatalf("plan.APIURL = %q", got.plan.APIURL)
 	}
-	if len(got.transcript) == 0 || !strings.Contains(got.transcript[0].Answer, "*") {
+	if len(got.transcript) < 2 || got.transcript[0].Answer != "API key verified & saved" {
 		t.Fatalf("transcript = %#v", got.transcript)
+	}
+	if got.transcript[0].Message != "" || got.transcript[0].Icon != "✓" {
+		t.Fatalf("transcript = %#v", got.transcript[0])
+	}
+	if got.transcript[1].Answer != "2 scopes: logs:write, memory:read" {
+		t.Fatalf("scopes transcript = %#v", got.transcript[1])
+	}
+}
+
+func TestSetupAPIKeyVerifyDoneShowsDevKeySummary(t *testing.T) {
+	model := newSetupModel(nil, agent.Info{}, "", false, packageRunner{})
+	model.beginAPIKeyPrompt()
+	model.apiKeyCandidate = "mock-key"
+	model.apiKeyVerifySeq = 1
+	model.apiKeyVerifying = true
+
+	updated, _ := model.handleAPIKeyVerifyDone(apiKeyVerifyDoneMsg{
+		seq: 1,
+		result: apiKeyVerificationResult{
+			APIURL: "https://dev-api.opscompanion.ai/v1",
+			WhoAmI: &models.WhoAmIResponse{
+				APIKey: models.APIKeyIdentity{Scopes: []string{"logs:write"}},
+			},
+		},
+	})
+	got := updated.(*setupModel)
+	if len(got.transcript) < 2 || got.transcript[0].Answer != "API key verified & saved (DEV KEY)" {
+		t.Fatalf("transcript = %#v", got.transcript)
+	}
+	if got.transcript[1].Answer != "1 scope: logs:write" {
+		t.Fatalf("scopes transcript = %#v", got.transcript[1])
+	}
+}
+
+func TestAPIKeyScopesSummaryWrapsLongScopeLists(t *testing.T) {
+	got := apiKeyScopesSummary([]string{
+		"logs:write",
+		"memories:read",
+		"traces:read",
+		"workspaces:read",
+		"integrations:write",
+	})
+	if !strings.Contains(got, "\n") {
+		t.Fatalf("expected wrapped scopes summary, got %q", got)
+	}
+	if !strings.Contains(got, "5 scopes: logs:write") {
+		t.Fatalf("unexpected scopes summary = %q", got)
 	}
 }
 
@@ -256,7 +308,7 @@ func TestRenderSuccessOutroHandlesGenericAgents(t *testing.T) {
 			{Agent: agent.Resolve(string(agent.Cursor))},
 		},
 	})
-	if !strings.Contains(view, "Cursor: generic hook commands available") {
+	if !strings.Contains(view, "Cursor: skills only") {
 		t.Fatalf("renderSuccessOutro() = %q", view)
 	}
 	if !strings.Contains(view, "npx skills add opscompanion/opscompanion-skills") {

@@ -11,14 +11,18 @@ import (
 )
 
 func TestRunInitPrintsLegacyWarningFirst(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
 	output, _ := captureStdoutAndRun(t, func() error {
 		oldStdin := os.Stdin
 		defer func() { os.Stdin = oldStdin }()
 
-		inReader, _, err := os.Pipe()
+		inReader, inWriter, err := os.Pipe()
 		if err != nil {
 			t.Fatalf("stdin pipe: %v", err)
 		}
+		_ = inWriter.Close()
 		os.Stdin = inReader
 		return runInit(initCmd, nil)
 	})
@@ -34,14 +38,18 @@ func TestRunInstallPrintsLegacyWarningFirst(t *testing.T) {
 	ActiveAgent = agent.Info{}
 	defer func() { ActiveAgent = oldAgent }()
 
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
 	output, _ := captureStdoutAndRun(t, func() error {
 		oldStdin := os.Stdin
 		defer func() { os.Stdin = oldStdin }()
 
-		inReader, _, err := os.Pipe()
+		inReader, inWriter, err := os.Pipe()
 		if err != nil {
 			t.Fatalf("stdin pipe: %v", err)
 		}
+		_ = inWriter.Close()
 		os.Stdin = inReader
 		return runInstall(installCmd, nil)
 	})

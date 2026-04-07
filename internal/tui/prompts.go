@@ -17,6 +17,7 @@ type TranscriptEntry struct {
 	Label   string
 	Message string
 	Answer  string
+	Icon    string
 }
 
 type TextPromptModel struct {
@@ -268,6 +269,9 @@ func RenderIntro(tag string, title string, subtitle string) string {
 }
 
 func RenderCompletedPrompt(entry TranscriptEntry) string {
+	if entry.Message == "" {
+		return renderStatus(entry.Answer, entry.Icon)
+	}
 	return strings.Join([]string{
 		RenderMuted(entry.Message),
 		RenderAnswer(entry.Answer),

@@ -93,3 +93,16 @@ func TestTextPromptModelUpdateUsesRawRunesForPaste(t *testing.T) {
 		t.Fatalf("pasted value = %q", model.Value)
 	}
 }
+
+func TestRenderCompletedPromptStatusOnly(t *testing.T) {
+	view := RenderCompletedPrompt(TranscriptEntry{
+		Answer: "API key verified & saved",
+		Icon:   "✓",
+	})
+	if !strings.Contains(view, "API key verified & saved") {
+		t.Fatalf("status view = %q", view)
+	}
+	if strings.Contains(view, "\n") {
+		t.Fatalf("status-only transcript should be a single line: %q", view)
+	}
+}
