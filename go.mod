@@ -1,6 +1,8 @@
 module github.com/opscompanion/opc
 
-go 1.25.9
+go 1.25.0
+
+toolchain go1.25.9
 
 require (
 	github.com/charmbracelet/bubbles v1.0.0
