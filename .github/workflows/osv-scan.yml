@@ -1,0 +1,28 @@
+name: OSV Scan
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 13 * * *"
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  osv-scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Run OSV-Scanner
+        continue-on-error: ${{ github.event_name != 'pull_request' }}
+        uses: google/osv-scanner-action/osv-scanner-action@v2.3.5
+        with:
+          scan-args: |-
+            -r
+            ./
