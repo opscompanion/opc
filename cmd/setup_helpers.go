@@ -344,9 +344,9 @@ func generateHooksForAgentQuiet(ag agent.Info, cfg *models.Config) (hooksPath st
 
 	switch ag.HookFormat {
 	case "claude-hooks":
-		return writeClaudeHooks(binary, ag, true, cfg.APIKey)
+		return writeClaudeHooks(binary, ag, true, cfg.APIKey, cfg.APIURL)
 	case "codex-hooks":
-		return writeCodexHooks(binary, ag, true, cfg.APIKey)
+		return writeCodexHooks(binary, ag, true, cfg.APIKey, cfg.APIURL)
 	default:
 		return "", "", generateGenericHooksQuiet(binary, ag)
 	}

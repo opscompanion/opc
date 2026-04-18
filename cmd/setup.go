@@ -537,7 +537,7 @@ func apiKeyPromptHint() string {
 }
 
 func apiKeyVerifiedSummary(apiURL string) string {
-	if strings.TrimRight(strings.TrimSpace(apiURL), "/") == config.DevAPIURL {
+	if config.IsDevAPIURL(apiURL) {
 		return "API key verified & saved (DEV KEY)"
 	}
 	return "API key verified & saved"
