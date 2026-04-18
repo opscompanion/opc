@@ -12,10 +12,12 @@ import (
 )
 
 const (
-	configDir     = ".config/opscompanion"
-	configFile    = "config.json"
-	DefaultAPIURL = "https://api.opscompanion.ai/v1"
-	DevAPIURL     = "https://dev-api.opscompanion.ai/v1"
+	configDir      = ".config/opscompanion"
+	configFile     = "config.json"
+	DefaultAPIURL  = "https://api.opscompanion.ai/v1"
+	DevAPIURL      = "https://dev-api.opscompanion.ai/v1"
+	DefaultOTELURL = "https://otel.opscompanion.ai/v1/logs"
+	DevOTELURL     = "https://dev-otel.opscompanion.ai/v1/logs"
 )
 
 // Path returns the full path to the config file.
@@ -102,6 +104,24 @@ func ResolveAPIURL(cfg *models.Config) string {
 		return strings.TrimRight(strings.TrimSpace(cfg.APIURL), "/")
 	}
 	return DefaultAPIURL
+}
+
+func IsDevAPIURL(apiURL string) bool {
+	return strings.TrimRight(strings.TrimSpace(apiURL), "/") == DevAPIURL
+}
+
+func ResolveOTELEndpoint(apiURL string) string {
+	if IsDevAPIURL(apiURL) {
+		return DevOTELURL
+	}
+	return DefaultOTELURL
+}
+
+func ResolveOTELEnvironment(apiURL string) string {
+	if IsDevAPIURL(apiURL) {
+		return "dev"
+	}
+	return "prod"
 }
 
 // RequireConfig loads config and returns an error if not configured.

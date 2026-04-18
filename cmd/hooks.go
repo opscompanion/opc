@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/opscompanion/opc/internal/agent"
+	"github.com/opscompanion/opc/internal/config"
 	"github.com/spf13/cobra"
 )
 
@@ -63,10 +64,14 @@ func agentFlagArg(ag agent.Info) string {
 }
 
 func generateClaudeHooks(binary string, ag agent.Info, apiKey ...string) (string, string, error) {
-	return writeClaudeHooks(binary, ag, false, apiKey...)
+	key := ""
+	if len(apiKey) > 0 {
+		key = apiKey[0]
+	}
+	return writeClaudeHooks(binary, ag, false, key, "")
 }
 
-func writeClaudeHooks(binary string, ag agent.Info, quiet bool, apiKey ...string) (string, string, error) {
+func writeClaudeHooks(binary string, ag agent.Info, quiet bool, apiKey string, apiURL string) (string, string, error) {
 	af := agentFlagArg(ag)
 	settings := map[string]interface{}{
 		"hooks": map[string]interface{}{
@@ -102,17 +107,13 @@ func writeClaudeHooks(binary string, ag agent.Info, quiet bool, apiKey ...string
 	}
 
 	// Wire up Claude Code's native OTEL pipeline to OpsCompanion
-	key := ""
-	if len(apiKey) > 0 {
-		key = apiKey[0]
-	}
-	if key != "" && key != "mock-key" {
+	if apiKey != "" && apiKey != "mock-key" {
 		settings["env"] = map[string]string{
 			"CLAUDE_CODE_ENABLE_TELEMETRY":     "1",
 			"OTEL_LOGS_EXPORTER":               "otlp",
 			"OTEL_EXPORTER_OTLP_PROTOCOL":      "http/json",
-			"OTEL_EXPORTER_OTLP_LOGS_ENDPOINT": "https://otel.opscompanion.ai/v1/logs",
-			"OTEL_EXPORTER_OTLP_HEADERS":       "Authorization=Bearer " + key,
+			"OTEL_EXPORTER_OTLP_LOGS_ENDPOINT": config.ResolveOTELEndpoint(apiURL),
+			"OTEL_EXPORTER_OTLP_HEADERS":       "Authorization=Bearer " + apiKey,
 		}
 	}
 
@@ -143,7 +144,7 @@ func writeClaudeHooks(binary string, ag agent.Info, quiet bool, apiKey ...string
 		fmt.Println("    - UserPromptSubmit → evaluate skill activation")
 		fmt.Println("    - PreToolUse       → log before each tool runs")
 		fmt.Println("    - PostToolUse      → log after each tool completes")
-		if key != "" && key != "mock-key" {
+		if apiKey != "" && apiKey != "mock-key" {
 			fmt.Println("    - OTEL         → export logs to OpsCompanion")
 		}
 	}
@@ -151,10 +152,14 @@ func writeClaudeHooks(binary string, ag agent.Info, quiet bool, apiKey ...string
 }
 
 func generateCodexHooks(binary string, ag agent.Info, apiKey ...string) (string, string, error) {
-	return writeCodexHooks(binary, ag, false, apiKey...)
+	key := ""
+	if len(apiKey) > 0 {
+		key = apiKey[0]
+	}
+	return writeCodexHooks(binary, ag, false, key, "")
 }
 
-func writeCodexHooks(binary string, ag agent.Info, quiet bool, apiKey ...string) (string, string, error) {
+func writeCodexHooks(binary string, ag agent.Info, quiet bool, apiKey string, apiURL string) (string, string, error) {
 	af := agentFlagArg(ag)
 
 	hooks := map[string]interface{}{
@@ -215,11 +220,6 @@ func writeCodexHooks(binary string, ag agent.Info, quiet bool, apiKey ...string)
 	}
 
 	// Write config to ~/.codex/config.toml
-	key := ""
-	if len(apiKey) > 0 {
-		key = apiKey[0]
-	}
-
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", "", fmt.Errorf("cannot determine home directory: %w", err)
@@ -234,17 +234,17 @@ func writeCodexHooks(binary string, ag agent.Info, quiet bool, apiKey ...string)
 	var configToml string
 	configToml += "[features]\ncodex_hooks = true\n"
 
-	if key != "" && key != "mock-key" {
+	if apiKey != "" && apiKey != "mock-key" {
 		configToml += fmt.Sprintf(`
 [otel]
-environment = "dev"
+environment = "%s"
 log_user_prompt = false 
 exporter = { otlp-http = {
-  endpoint = "https://otel.opscompanion.ai/v1/logs",
+  endpoint = "%s",
   protocol = "binary",
   headers = { "Authorization" = "Bearer %s" }
 }}
-`, key)
+`, config.ResolveOTELEnvironment(apiURL), config.ResolveOTELEndpoint(apiURL), apiKey)
 	}
 
 	if err := os.WriteFile(configPath, []byte(configToml), 0600); err != nil {
@@ -257,7 +257,7 @@ exporter = { otlp-http = {
 		fmt.Println("  Codex will now:")
 		fmt.Println("    - PreToolUse   → log before each tool runs")
 		fmt.Println("    - PostToolUse  → log after each tool completes")
-		if key != "" && key != "mock-key" {
+		if apiKey != "" && apiKey != "mock-key" {
 			fmt.Println("    - OTEL         → export logs to OpsCompanion")
 		}
 	}
